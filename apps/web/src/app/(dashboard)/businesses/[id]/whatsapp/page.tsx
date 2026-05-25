@@ -77,7 +77,8 @@ export default function WhatsAppPage({ params }: { params: Promise<{ id: string 
         {qrCode && !isConnected && (
           <div className="mb-8">
             <div className="inline-block p-4 bg-white border-2 border-gray-200 rounded-2xl shadow-sm">
-              <Image src={qrCode} alt="QR Code WhatsApp" width={250} height={250} />
+              {/* data: URLs precisam de unoptimized no Next.js */}
+              <Image src={qrCode} alt="QR Code WhatsApp" width={250} height={250} unoptimized />
             </div>
             <div className="mt-4 text-sm text-gray-500 space-y-1">
               <p>1. Abra o WhatsApp no celular</p>
