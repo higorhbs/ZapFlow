@@ -1,0 +1,255 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Planos SaaS ───────────────────────────────────────────────────────────────
+
+enum Plan {
+  STARTER    // 1 número, até 500 msg/mês
+  PRO        // 3 números, até 5000 msg/mês
+  UNLIMITED  // ilimitado
+}
+
+enum PlanStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+}
+
+// ─── Tenant (dono do negócio) ──────────────────────────────────────────────────
+
+model Tenant {
+  id              String       @id @default(cuid())
+  name            String
+  email           String       @unique
+  passwordHash    String
+  plan            Plan         @default(STARTER)
+  planStatus      PlanStatus   @default(TRIALING)
+  stripeCustomerId String?
+  trialEndsAt     DateTime     @default(dbgenerated("NOW() + INTERVAL '14 days'"))
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  businesses      Business[]
+  sessions        AuthSession[]
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  tenantId  String
+  token     String   @unique
+  expiresAt DateTime
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// ─── Negócio ───────────────────────────────────────────────────────────────────
+
+enum BusinessType {
+  BARBERSHOP
+  SALON          // manicure / salão
+  RESTAURANT
+  DENTAL
+  STORE          // loja de bairro
+  OTHER
+}
+
+model Business {
+  id          String       @id @default(cuid())
+  tenantId    String
+  name        String
+  type        BusinessType @default(OTHER)
+  phone       String       // número WhatsApp vinculado
+  address     String?
+  description String?
+  logoUrl     String?
+  // Horário de funcionamento (JSON: { mon: ["09:00","18:00"], ... })
+  workingHours Json         @default("{}")
+  // Mensagem de saudação
+  greetingMsg String       @default("Olá! Como posso ajudar?")
+  awayMsg     String       @default("No momento estamos fechados. Em breve retornaremos!")
+  isConnected Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  catalog       CatalogItem[]
+  faqs          FAQ[]
+  conversations Conversation[]
+  appointments  Appointment[]
+  payments      Payment[]
+  autoReplies   AutoReply[]
+
+  @@unique([tenantId, phone])
+}
+
+// ─── Catálogo ──────────────────────────────────────────────────────────────────
+
+model CatalogItem {
+  id          String   @id @default(cuid())
+  businessId  String
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  imageUrl    String?
+  available   Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+// ─── FAQ ───────────────────────────────────────────────────────────────────────
+
+model FAQ {
+  id         String   @id @default(cuid())
+  businessId String
+  question   String   // "Qual o horário de funcionamento?"
+  answer     String
+  keywords   String[] // ["horário", "funcionamento", "abre", "fecha"]
+  sortOrder  Int      @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+// ─── Resposta automática customizada ──────────────────────────────────────────
+
+enum AutoReplyTrigger {
+  KEYWORD
+  GREETING
+  AFTER_HOURS
+  CATALOG_REQUEST
+  APPOINTMENT_REQUEST
+  PAYMENT_REQUEST
+  QUOTE_REQUEST
+}
+
+model AutoReply {
+  id          String           @id @default(cuid())
+  businessId  String
+  trigger     AutoReplyTrigger
+  keywords    String[]         @default([])
+  response    String           // suporta variáveis: {nome}, {negocio}
+  active      Boolean          @default(true)
+  priority    Int              @default(0)
+  createdAt   DateTime         @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+// ─── Conversa WhatsApp ─────────────────────────────────────────────────────────
+
+enum ConversationStatus {
+  OPEN
+  ATTENDING  // atendimento humano assumiu
+  CLOSED
+}
+
+model Conversation {
+  id           String             @id @default(cuid())
+  businessId   String
+  customerPhone String            // número do cliente
+  customerName  String?
+  status        ConversationStatus @default(OPEN)
+  lastMessageAt DateTime           @default(now())
+  createdAt     DateTime           @default(now())
+
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  messages Message[]
+  appointments Appointment[]
+  payments     Payment[]
+
+  @@unique([businessId, customerPhone])
+  @@index([businessId, lastMessageAt(sort: Desc)])
+}
+
+enum MessageRole {
+  CUSTOMER
+  BOT
+  HUMAN  // atendente humano
+}
+
+model Message {
+  id             String      @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  mediaUrl       String?
+  waMessageId    String?     // ID retornado pelo WhatsApp
+  createdAt      DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  @@index([conversationId, createdAt])
+}
+
+// ─── Agendamento ───────────────────────────────────────────────────────────────
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+model Appointment {
+  id             String            @id @default(cuid())
+  businessId     String
+  conversationId String?
+  customerPhone  String
+  customerName   String?
+  serviceId      String?           // CatalogItem id
+  serviceName    String
+  scheduledAt    DateTime
+  durationMins   Int               @default(60)
+  status         AppointmentStatus @default(PENDING)
+  notes          String?
+  reminderSent   Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+
+  @@index([businessId, scheduledAt])
+}
+
+// ─── Pagamentos PIX ───────────────────────────────────────────────────────────
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  businessId     String
+  conversationId String?
+  customerPhone  String
+  customerName   String?
+  description    String
+  amount         Decimal       @db.Decimal(10, 2)
+  status         PaymentStatus @default(PENDING)
+  pixQrCode      String?       // QR code string
+  pixCopyPaste   String?       // código copia-e-cola
+  asaasId        String?       // ID na Asaas
+  externalRef    String?
+  paidAt         DateTime?
+  dueDate        DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+
+  @@index([businessId, createdAt(sort: Desc)])
+}
