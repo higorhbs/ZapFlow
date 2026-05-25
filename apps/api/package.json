@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run build --workspace @zapflow/database && npm run build --workspace @zapflow/shared && npm run build --workspace @zapflow/whatsapp-client && tsc -p tsconfig.json",
     "start": "node dist/index.js"
   },
   "dependencies": {
