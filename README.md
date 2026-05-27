@@ -65,21 +65,22 @@ Credencial Admin: `GOOGLE_APPLICATION_CREDENTIALS=.secrets/firebase-adminsdk.jso
 
 ## Deploy
 
-| App | URL |
-|-----|-----|
-| **API** | https://zap-flow-api-peach.vercel.app |
-| **Web (Firebase Hosting)** | https://zapflow-higor-2026.web.app |
+| App | Onde |
+|-----|------|
+| **Web** | Firebase Hosting — https://zapflow-higor-2026.web.app |
+| **API** | Local (`npm run dev`) ou Docker/VPS/Railway/Render (`apps/api/Dockerfile`) |
 
 ```bash
-npm run deploy:hosting    # front
+npm run deploy:hosting    # front estático
 npm run deploy:firestore  # regras Firestore
 ```
 
-**Firebase:** Authentication (e-mail + Google), Firestore, Hosting.  
-**API (Vercel):** `FIREBASE_*`, `CORS_ORIGIN`, `ENABLE_WORKERS=false`  
-**Web:** `NEXT_PUBLIC_FIREBASE_*`, `NEXT_PUBLIC_API_URL`
+Antes do deploy do front, crie `apps/web/.env.production` (veja `.env.production.example`) com `NEXT_PUBLIC_API_URL` apontando para sua API pública e `NEXT_PUBLIC_FIREBASE_*`.
 
-**WhatsApp:** exige API com processo contínuo (`npm run dev` ou Railway/Render com `ENABLE_WORKERS=true`). Não funciona na Vercel serverless.
+**API:** `FIREBASE_*`, `REDIS_URL`, `CORS_ORIGIN` (URL do Hosting), `ENABLE_WORKERS=true` para WhatsApp.  
+**Web:** `NEXT_PUBLIC_FIREBASE_*`, `NEXT_PUBLIC_API_URL`.
+
+**WhatsApp:** só com API em processo contínuo (`ENABLE_WORKERS=true`), não em funções serverless.
 
 ## Configuração do WhatsApp
 

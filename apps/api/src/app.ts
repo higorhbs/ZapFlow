@@ -46,7 +46,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   const { whatsappRoutes } = await import("./routes/whatsapp.js");
   await app.register(whatsappRoutes);
 
-  if (process.env.ENABLE_WORKERS === "true" && process.env.VERCEL !== "1") {
+  if (process.env.ENABLE_WORKERS === "true") {
     const { waManager } = await import("./wa-manager.js");
     const { startReminderWorker, startMessageWorker } = await import(
       "./workers/message-worker.js"

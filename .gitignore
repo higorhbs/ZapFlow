@@ -12,4 +12,5 @@ apps/web/vendor
 apps/web/out
 apps/web/.env.production
 .claude
+.vercel
 *.tsbuildinfo

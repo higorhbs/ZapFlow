@@ -1,6 +1,0 @@
-{
-  "framework": "nextjs",
-  "buildCommand": "cd ../.. && npx turbo run build --filter=@zapflow/web...",
-  "installCommand": "cd ../.. && npm install",
-  "outputDirectory": ".next"
-}

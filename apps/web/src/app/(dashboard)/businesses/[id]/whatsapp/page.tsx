@@ -70,10 +70,10 @@ export default function WhatsAppPage({ params }: { params: Promise<{ id: string 
         <div className="mb-6 card bg-amber-50 border-amber-200 flex gap-3 text-sm text-amber-900">
           <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium">API de produção sem WhatsApp</p>
+            <p className="font-medium">WhatsApp indisponível neste ambiente</p>
             <p className="mt-1 text-amber-800">
-              Para conectar, use o app em <strong>http://localhost:3000</strong> com{" "}
-              <strong>npm run dev</strong> (API na porta 3001). O WhatsApp não roda na Vercel.
+              Rode <strong>npm run dev</strong> e acesse <strong>http://localhost:3000</strong> (API na
+              porta 3001 com <code className="text-xs">ENABLE_WORKERS=true</code>).
             </p>
           </div>
         </div>

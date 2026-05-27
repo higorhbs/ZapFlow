@@ -15,7 +15,7 @@ function waUnavailable(reply: FastifyReply) {
   return reply.status(503).send({
     status: "error",
     message:
-      "WhatsApp precisa da API local (npm run dev, porta 3001). A Vercel não mantém sessão do WhatsApp.",
+      "WhatsApp exige API com processo contínuo (npm run dev na porta 3001 ou servidor com ENABLE_WORKERS=true).",
   });
 }
 
