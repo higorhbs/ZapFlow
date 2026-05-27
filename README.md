@@ -56,7 +56,7 @@ npm run dev
 
 Credencial Admin: `GOOGLE_APPLICATION_CREDENTIALS=.secrets/firebase-adminsdk.json` na raiz.
 
-OAuth Google: `npm run google:oauth-setup`
+**Login Google:** `npm run google:oauth-setup` — no Google Cloud → Credentials → OAuth Client → **Authorized redirect URIs**, inclua obrigatoriamente `https://zapflow-higor-2026.firebaseapp.com/__/auth/handler` (e as demais URLs que o script listar). `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` deve ser `zapflow-higor-2026.firebaseapp.com`.
 
 ### Acesse
 

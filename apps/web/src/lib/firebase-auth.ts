@@ -50,13 +50,16 @@ export function authErrorMessage(err: unknown, fallback: string): string {
   };
   const raw = err instanceof Error ? err.message : fallback;
   if (raw.toLowerCase().includes("requested action is invalid")) {
-    return "Login Google falhou. Rode npm run google:oauth-setup e adicione http://localhost:3000 nas origens JavaScript.";
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "sua URL";
+    return `Login Google inválido em ${origin}. Use http://localhost:3000 no dev ou confira OAuth (npm run google:oauth-setup): origens JS + redirect /__/auth/handler para localhost e zapflow-higor-2026.web.app.`;
   }
   if (raw.toLowerCase().includes("origin_mismatch")) {
     return "Use http://localhost:3000 (não IP da rede). Se persistir: npm run google:oauth-setup.";
   }
   if (raw.toLowerCase().includes("redirect_uri_mismatch")) {
-    return "Redirect OAuth incorreto. Rode npm run google:oauth-setup e adicione os URIs de redirecionamento.";
+    const project = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "SEU-PROJETO";
+    return `Redirect URI inválida. No Google Cloud → Credentials → OAuth Client, adicione exatamente: https://${project}.firebaseapp.com/__/auth/handler (rode npm run google:oauth-setup).`;
   }
   return map[code] ?? raw;
 }
@@ -86,6 +89,32 @@ function googleProvider() {
   return provider;
 }
 
+function isLocalAuthOrigin(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1";
+}
+
+function isPrivateNetworkHost(host: string): boolean {
+  if (!/^\d+\.\d+\.\d+\.\d+$/.test(host)) return false;
+  const [a, b] = host.split(".").map(Number);
+  if (a === 10) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  return false;
+}
+
+export function assertGoogleAuthOrigin(): void {
+  if (typeof window === "undefined") return;
+  const host = window.location.hostname;
+  if (isPrivateNetworkHost(host)) {
+    const port = window.location.port || "3000";
+    throw new Error(
+      `Abra http://localhost:${port} (não use ${window.location.host}). O Google OAuth não aceita IP da rede (${host}).`
+    );
+  }
+}
+
 async function finishGoogleLogin(user: User) {
   await ensureTenantProfile(user);
   const token = await user.getIdToken();
@@ -105,8 +134,15 @@ function shouldFallbackToRedirect(err: unknown): boolean {
 }
 
 export async function loginWithGoogle(): Promise<{ token: string; user: User } | null> {
+  assertGoogleAuthOrigin();
   const auth = getClientAuth();
   const provider = googleProvider();
+
+  if (!isLocalAuthOrigin()) {
+    await signInWithRedirect(auth, provider);
+    return null;
+  }
+
   try {
     const cred = await signInWithPopup(auth, provider);
     return finishGoogleLogin(cred.user);

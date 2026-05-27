@@ -3,30 +3,40 @@ const project = process.env.FIREBASE_PROJECT_ID ?? "zapflow-higor-2026";
 const clientSuffix = "295076612394-8k6ecbb35gps827lj3um1efvofbj3gj6";
 
 const site = `https://${project}.web.app`;
-const redirects = [
-  "http://localhost:3000/__/auth/handler",
-  "http://127.0.0.1:3000/__/auth/handler",
-  `https://${project}.firebaseapp.com/__/auth/handler`,
-  `${site}/__/auth/handler`,
-];
-const jsOrigins = ["http://localhost:3000", "http://127.0.0.1:3000", site, `https://${project}.firebaseapp.com`];
+const firebaseApp = `https://${project}.firebaseapp.com`;
+const handlerFirebase = `${firebaseApp}/__/auth/handler`;
+const handlerWeb = `${site}/__/auth/handler`;
+const handlerLocal = "http://localhost:3000/__/auth/handler";
+const handlerLocal127 = "http://127.0.0.1:3000/__/auth/handler";
+
+const redirects = [handlerFirebase, handlerWeb, handlerLocal, handlerLocal127];
+const jsOrigins = ["http://localhost:3000", "http://127.0.0.1:3000", site, firebaseApp];
 
 const credentialsUrl = `https://console.cloud.google.com/apis/credentials?project=${project}`;
 const clientUrl = `https://console.cloud.google.com/apis/credentials/oauthclient/${clientSuffix}?project=${project}`;
+const authDomainsUrl = `https://console.firebase.google.com/project/${project}/authentication/settings`;
 
-console.log("\n=== Login Google (Firebase redirect) ===\n");
-console.log("O app NÃO usa mais o botão Google Identity (evita origin_mismatch).");
-console.log("Abra o cliente OAuth:", `"Web client (auto created by Google Service)"`);
-console.log("\nEm Authorized redirect URIs, adicione TODOS:");
-redirects.forEach((r) => console.log("  •", r));
-console.log("\nEm Authorized JavaScript origins (login via popup), adicione:");
-jsOrigins.forEach((o) => console.log("  •", o));
-console.log("\nLocal: http://localhost:3000");
+console.log("\n=== Login Google — Redirect URI (erro mais comum) ===\n");
+console.log("Google Cloud → APIs & Services → Credentials");
+console.log('→ OAuth client "Web client (auto created by Google Service)"');
+console.log("→ Authorized redirect URIs\n");
+console.log("OBRIGATÓRIO (copie exatamente, sem barra no final):");
+console.log(`\n  ${handlerFirebase}\n`);
+console.log("Também adicione:");
+redirects.slice(1).forEach((r) => console.log(`  ${r}`));
+console.log("\n--- Authorized JavaScript origins ---");
+jsOrigins.forEach((o) => console.log(`  ${o}`));
+console.log("\n--- Firebase Authorized domains ---");
+console.log("  localhost");
+console.log(`  ${project}.web.app`);
+console.log(`  ${project}.firebaseapp.com`);
+console.log(`\n  ${authDomainsUrl}`);
+console.log("\n--- App ---");
+console.log(`NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${project}.firebaseapp.com`);
+console.log("Dev: http://localhost:3000 (nunca 192.168.x.x)");
 console.log("Produção:", site);
-console.log("(não use http://192.168.x.x:3000 — gera origin_mismatch no Google)\n");
-console.log("Link direto do OAuth client:", clientUrl);
-console.log("Lista de credenciais:", credentialsUrl);
-console.log("\nSalve, aguarde 1 min, reinicie: npm run dev\n");
+console.log("\nLink OAuth client:", clientUrl);
+console.log("Salve, aguarde ~2 min, reinicie npm run dev\n");
 
 const { execSync } = await import("node:child_process");
 try {
