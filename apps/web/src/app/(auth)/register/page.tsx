@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { authErrorMessage, registerWithEmail } from "@/lib/firebase-auth";
+import { getClientAuth } from "@zapflow/firebase/client";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { AuthDivider } from "@/components/auth/AuthDivider";
 import { setToken } from "@/lib/auth";
@@ -37,8 +38,16 @@ export default function RegisterPage() {
     try {
       const res = await registerWithEmail(data.name, data.email, data.password);
       setToken(res.token);
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (err: unknown) {
+      const user = getClientAuth().currentUser;
+      if (user) {
+        const token = await user.getIdToken();
+        setToken(token);
+        router.replace("/dashboard");
+        toast.warning("Conta criada. Se algo faltar, recarregue a página.");
+        return;
+      }
       toast.error(authErrorMessage(err, "Falha ao criar conta"));
     }
   }

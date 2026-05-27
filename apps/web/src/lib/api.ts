@@ -1,10 +1,30 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 import { getIdToken } from "./firebase-auth";
+import { getClientAuth } from "@zapflow/firebase/client";
+import {
+  listClientBusinesses,
+  getClientBusiness,
+  createClientBusiness,
+  updateClientBusiness,
+  listClientCatalog,
+  createClientCatalogItem,
+  updateClientCatalogItem,
+  deleteClientCatalogItem,
+  listClientFaqs,
+  createClientFaq,
+  deleteClientFaq,
+} from "@zapflow/firebase/client";
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001",
 });
+
+function requireUid(): string {
+  const uid = getClientAuth().currentUser?.uid;
+  if (!uid) throw new Error("Faça login para continuar.");
+  return uid;
+}
 
 api.interceptors.request.use(async (config) => {
   const fresh = await getIdToken();
@@ -36,40 +56,36 @@ api.interceptors.response.use(
   }
 );
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
 export const authApi = {
   me: () => api.get("/auth/me").then((r) => r.data),
+  sync: (name?: string) => api.post("/auth/sync", { name }).then((r) => r.data),
 };
 
-// ─── Businesses ───────────────────────────────────────────────────────────────
 export const businessApi = {
-  list: () => api.get("/businesses").then((r) => r.data),
-  get: (id: string) => api.get(`/businesses/${id}`).then((r) => r.data),
-  create: (data: any) => api.post("/businesses", data).then((r) => r.data),
-  update: (id: string, data: any) => api.put(`/businesses/${id}`, data).then((r) => r.data),
+  list: () => listClientBusinesses(requireUid()),
+  get: (id: string) => getClientBusiness(id, requireUid()),
+  create: (data: Parameters<typeof createClientBusiness>[1]) =>
+    createClientBusiness(requireUid(), data),
+  update: (id: string, data: Parameters<typeof updateClientBusiness>[2]) =>
+    updateClientBusiness(id, requireUid(), data),
 };
 
-// ─── Catalog ──────────────────────────────────────────────────────────────────
 export const catalogApi = {
-  list: (businessId: string) => api.get(`/businesses/${businessId}/catalog`).then((r) => r.data),
-  create: (businessId: string, data: any) =>
-    api.post(`/businesses/${businessId}/catalog`, data).then((r) => r.data),
-  update: (businessId: string, itemId: string, data: any) =>
-    api.put(`/businesses/${businessId}/catalog/${itemId}`, data).then((r) => r.data),
-  remove: (businessId: string, itemId: string) =>
-    api.delete(`/businesses/${businessId}/catalog/${itemId}`),
+  list: (businessId: string) => listClientCatalog(businessId),
+  create: (businessId: string, data: Record<string, unknown>) =>
+    createClientCatalogItem(businessId, data as Parameters<typeof createClientCatalogItem>[1]),
+  update: (businessId: string, itemId: string, data: Record<string, unknown>) =>
+    updateClientCatalogItem(businessId, itemId, data),
+  remove: (businessId: string, itemId: string) => deleteClientCatalogItem(businessId, itemId),
 };
 
-// ─── FAQs ─────────────────────────────────────────────────────────────────────
 export const faqApi = {
-  list: (businessId: string) => api.get(`/businesses/${businessId}/faqs`).then((r) => r.data),
-  create: (businessId: string, data: any) =>
-    api.post(`/businesses/${businessId}/faqs`, data).then((r) => r.data),
-  remove: (businessId: string, faqId: string) =>
-    api.delete(`/businesses/${businessId}/faqs/${faqId}`),
+  list: (businessId: string) => listClientFaqs(businessId),
+  create: (businessId: string, data: Record<string, unknown>) =>
+    createClientFaq(businessId, data as Parameters<typeof createClientFaq>[1]),
+  remove: (businessId: string, faqId: string) => deleteClientFaq(businessId, faqId),
 };
 
-// ─── Conversations ────────────────────────────────────────────────────────────
 export const conversationApi = {
   list: (businessId: string, params?: { status?: string; page?: number }) =>
     api.get(`/businesses/${businessId}/conversations`, { params }).then((r) => r.data),
@@ -83,7 +99,6 @@ export const conversationApi = {
     api.patch(`/businesses/${businessId}/conversations/${conversationId}/close`).then((r) => r.data),
 };
 
-// ─── WhatsApp ─────────────────────────────────────────────────────────────────
 export const whatsappApi = {
   connect: (businessId: string) =>
     api.post(`/businesses/${businessId}/whatsapp/connect`).then((r) => r.data),
@@ -95,16 +110,23 @@ export const whatsappApi = {
     api.post(`/businesses/${businessId}/whatsapp/send`, { to, text }).then((r) => r.data),
 };
 
-// ─── Appointments ─────────────────────────────────────────────────────────────
 export const appointmentApi = {
   list: (businessId: string, params?: { from?: string; to?: string; status?: string }) =>
     api.get(`/businesses/${businessId}/appointments`, { params }).then((r) => r.data),
-  patch: (businessId: string, appointmentId: string, data: any) =>
+  patch: (businessId: string, appointmentId: string, data: Record<string, unknown>) =>
     api.patch(`/businesses/${businessId}/appointments/${appointmentId}`, data).then((r) => r.data),
 };
 
-// ─── Analytics ────────────────────────────────────────────────────────────────
+const emptyAnalytics = {
+  conversations: { thisMonth: 0, growth: 0 },
+  appointments: { pending: 0 },
+  payments: { revenueThisMonth: 0 },
+};
+
 export const analyticsApi = {
   get: (businessId: string) =>
-    api.get(`/businesses/${businessId}/analytics`).then((r) => r.data),
+    api
+      .get(`/businesses/${businessId}/analytics`)
+      .then((r) => r.data)
+      .catch(() => emptyAnalytics),
 };

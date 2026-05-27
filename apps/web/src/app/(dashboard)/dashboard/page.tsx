@@ -2,16 +2,20 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { businessApi, analyticsApi } from "@/lib/api";
+import { useAuth } from "@/contexts/auth-context";
 import { formatCurrency } from "@/lib/utils";
 import { MessageSquare, Calendar, DollarSign, TrendingUp, Plus, Store, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const { data: businesses = [], isLoading } = useQuery({
-    queryKey: ["businesses"],
+  const { uid, ready } = useAuth();
+  const { data: businesses, isLoading, isError, error } = useQuery({
+    queryKey: ["businesses", uid],
     queryFn: businessApi.list,
+    enabled: ready && !!uid,
   });
+  const list = businesses ?? [];
 
   if (isLoading) {
     return (
@@ -21,7 +25,15 @@ export default function DashboardPage() {
     );
   }
 
-  if (!businesses.length) {
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[60vh] p-8">
+        <p className="text-red-600">{(error as Error)?.message ?? "Erro ao carregar negócios"}</p>
+      </div>
+    );
+  }
+
+  if (!list.length) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[60vh] p-8">
         <div className="w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center mb-4">
@@ -47,7 +59,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="space-y-6">
-        {businesses.map((business: any) => (
+        {list.map((business: any) => (
           <BusinessCard key={business.id} business={business} />
         ))}
 

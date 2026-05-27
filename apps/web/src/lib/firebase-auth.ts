@@ -9,33 +9,14 @@ import {
   onAuthStateChanged,
   type User,
 } from "firebase/auth";
-import { getClientAuth } from "@zapflow/firebase/client";
-
-const apiBase = () => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+import { getClientAuth, ensureClientTenant } from "@zapflow/firebase/client";
 
 async function ensureTenantProfile(user: User, name?: string) {
-  const token = await user.getIdToken();
-  let res: Response;
-  try {
-    res = await fetch(`${apiBase()}/auth/sync`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ name }),
-    });
-  } catch {
-    throw new Error("API offline. Rode npm run dev e confira NEXT_PUBLIC_API_URL=http://localhost:3001");
-  }
-  if (!res.ok) {
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
-    const msg = data.error ?? `Falha na API (${res.status})`;
-    if (res.status === 401) {
-      throw new Error(`${msg}. Confira GOOGLE_APPLICATION_CREDENTIALS no .env da raiz.`);
-    }
-    throw new Error(msg);
-  }
+  const email = user.email;
+  if (!email) throw new Error("E-mail não encontrado na conta Firebase");
+  const displayName = name ?? user.displayName ?? email.split("@")[0] ?? "Usuário";
+  await user.getIdToken(true);
+  await ensureClientTenant(user.uid, { name: displayName, email });
 }
 
 export function authErrorMessage(err: unknown, fallback: string): string {
@@ -54,6 +35,7 @@ export function authErrorMessage(err: unknown, fallback: string): string {
     "auth/wrong-password": "Senha incorreta.",
     "auth/email-already-in-use": "E-mail já cadastrado.",
     "auth/weak-password": "Senha muito fraca (mínimo 6 caracteres).",
+    "permission-denied": "Sem permissão no Firestore. Confira as regras e o login.",
   };
   const raw = err instanceof Error ? err.message : fallback;
   if (raw.toLowerCase().includes("requested action is invalid")) {
@@ -107,7 +89,14 @@ export async function loginWithGoogle(): Promise<{ token: string; user: User } |
     return finishGoogleLogin(cred.user);
   } catch (err: unknown) {
     const code = err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
-    if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+    const msg = err instanceof Error ? err.message : "";
+    const shouldUseRedirect =
+      code === "auth/popup-blocked" ||
+      code === "auth/operation-not-supported-in-this-environment" ||
+      msg.toLowerCase().includes("requested action is invalid") ||
+      msg.toLowerCase().includes("origin_mismatch") ||
+      msg.toLowerCase().includes("redirect_uri_mismatch");
+    if (shouldUseRedirect) {
       await signInWithRedirect(auth, provider);
       return null;
     }

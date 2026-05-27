@@ -7,6 +7,20 @@
     "site": "zapflow-higor-2026",
     "public": "apps/web/out",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "rewrites": [{ "source": "**", "destination": "/index.html" }]
+    "cleanUrls": true,
+    "headers": [
+      {
+        "source": "/index.html",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+      }
+    ],
+    "rewrites": [
+      { "source": "/businesses/*/catalog", "destination": "/index.html" },
+      { "source": "/businesses/*/conversations", "destination": "/index.html" },
+      { "source": "/businesses/*/appointments", "destination": "/index.html" },
+      { "source": "/businesses/*/faqs", "destination": "/index.html" },
+      { "source": "/businesses/*/whatsapp", "destination": "/index.html" },
+      { "source": "/businesses/*/settings", "destination": "/index.html" }
+    ]
   }
 }

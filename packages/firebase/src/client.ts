@@ -58,3 +58,6 @@ export function getClientDb(): Firestore {
   if (!db) db = getFirestore(getFirebaseApp());
   return db;
 }
+
+export { ensureClientTenant } from "./client-tenant.js";
+export * from "./client-data.js";

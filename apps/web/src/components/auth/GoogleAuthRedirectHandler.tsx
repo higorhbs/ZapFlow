@@ -14,6 +14,9 @@ export function GoogleAuthRedirectHandler() {
     if (started.current) return;
     started.current = true;
 
+    const path = window.location.pathname;
+    if (path !== "/" && path !== "/register") return;
+
     completeGoogleRedirect()
       .then((res) => {
         if (!res) return;

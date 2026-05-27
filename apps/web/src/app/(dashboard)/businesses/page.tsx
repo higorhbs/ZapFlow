@@ -2,15 +2,19 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { businessApi } from "@/lib/api";
+import { useAuth } from "@/contexts/auth-context";
 import { BUSINESS_TYPE_LABELS, cn } from "@/lib/utils";
 import Link from "next/link";
 import { Plus, ArrowRight, Wifi, WifiOff, Store } from "lucide-react";
 
 export default function BusinessesPage() {
-  const { data: businesses = [], isLoading } = useQuery({
-    queryKey: ["businesses"],
+  const { uid, ready } = useAuth();
+  const { data: businesses, isLoading, isError, error } = useQuery({
+    queryKey: ["businesses", uid],
     queryFn: businessApi.list,
+    enabled: ready && !!uid,
   });
+  const list = businesses ?? [];
 
   return (
     <div className="p-8">
@@ -31,7 +35,12 @@ export default function BusinessesPage() {
             <div key={i} className="card animate-pulse h-48 bg-gray-100" />
           ))}
         </div>
-      ) : businesses.length === 0 ? (
+      ) : isError ? (
+        <div className="text-center py-20">
+          <p className="text-red-600 mb-2">{(error as Error)?.message ?? "Erro ao carregar negócios"}</p>
+          <p className="text-sm text-gray-500">Confira o login e as regras do Firestore (coleção businesses).</p>
+        </div>
+      ) : list.length === 0 ? (
         <div className="text-center py-20">
           <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Store className="w-8 h-8 text-gray-400" />
@@ -45,7 +54,7 @@ export default function BusinessesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {businesses.map((b: any) => (
+          {list.map((b: any) => (
             <Link key={b.id} href={`/businesses/${b.id}/conversations`} className="card hover:shadow-md transition-all group">
               <div className="flex items-start justify-between mb-4">
                 <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center">

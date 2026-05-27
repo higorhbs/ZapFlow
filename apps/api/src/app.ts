@@ -13,7 +13,24 @@ export async function buildApp(): Promise<FastifyInstance> {
     logger: { level: process.env.LOG_LEVEL ?? "info" },
   });
 
-  await app.register(cors, { origin: process.env.CORS_ORIGIN ?? true });
+  const corsOrigin = process.env.CORS_ORIGIN;
+  await app.register(cors, {
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (corsOrigin === "*" || corsOrigin === origin) return cb(null, true);
+      if (
+        !corsOrigin &&
+        (/^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+          /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
+          /^https?:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin))
+      ) {
+        return cb(null, true);
+      }
+      if (corsOrigin?.split(",").map((o) => o.trim()).includes(origin)) return cb(null, true);
+      cb(new Error("CORS"), false);
+    },
+    credentials: true,
+  });
   await app.register(formbody);
 
   app.get("/health", () => ({ ok: true, ts: new Date().toISOString() }));
