@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify";
-import { prisma } from "@zapflow/database";
+import { getBusiness, setBusinessConnected } from "@zapflow/firebase";
 import { requireAuth } from "../middleware/auth";
 import { WhatsAppManager } from "@zapflow/whatsapp-client";
 import { processMessage } from "../services/bot";
@@ -40,7 +40,7 @@ export function whatsappRoutes(waManager: WhatsAppManager) {
     // Conecta / gera QR
     app.post("/businesses/:id/whatsapp/connect", async (req, reply) => {
       const { id } = req.params as { id: string };
-      const business = await prisma.business.findFirst({ where: { id, tenantId: req.tenantId } });
+      const business = await getBusiness(id, req.tenantId);
       if (!business) return reply.status(404).send({ error: "Not found" });
 
       const client = waManager.getOrCreate(id, sessionsRoot);
@@ -60,7 +60,7 @@ export function whatsappRoutes(waManager: WhatsAppManager) {
 
         client.once("connected", async () => {
           clearTimeout(timeout);
-          await prisma.business.update({ where: { id }, data: { isConnected: true } });
+          await setBusinessConnected(id, true);
 
           resolve({ status: "connected" });
         });
@@ -75,7 +75,7 @@ export function whatsappRoutes(waManager: WhatsAppManager) {
     // Status da conexão
     app.get("/businesses/:id/whatsapp/status", async (req, reply) => {
       const { id } = req.params as { id: string };
-      const business = await prisma.business.findFirst({ where: { id, tenantId: req.tenantId } });
+      const business = await getBusiness(id, req.tenantId);
       if (!business) return reply.status(404).send({ error: "Not found" });
 
       const client = waManager.get(id);
@@ -88,14 +88,14 @@ export function whatsappRoutes(waManager: WhatsAppManager) {
     // Desconecta
     app.post("/businesses/:id/whatsapp/disconnect", async (req, reply) => {
       const { id } = req.params as { id: string };
-      const business = await prisma.business.findFirst({ where: { id, tenantId: req.tenantId } });
+      const business = await getBusiness(id, req.tenantId);
       if (!business) return reply.status(404).send({ error: "Not found" });
 
       const client = waManager.get(id);
       if (client) {
         await client.logout();
         waManager.remove(id);
-        await prisma.business.update({ where: { id }, data: { isConnected: false } });
+        await setBusinessConnected(id, false);
       }
       return { status: "disconnected" };
     });
@@ -104,7 +104,7 @@ export function whatsappRoutes(waManager: WhatsAppManager) {
     app.post("/businesses/:id/whatsapp/send", async (req, reply) => {
       const { id } = req.params as { id: string };
       const { to, text } = req.body as { to: string; text: string };
-      const business = await prisma.business.findFirst({ where: { id, tenantId: req.tenantId } });
+      const business = await getBusiness(id, req.tenantId);
       if (!business) return reply.status(404).send({ error: "Not found" });
 
       const client = waManager.get(id);

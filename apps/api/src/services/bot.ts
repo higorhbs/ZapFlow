@@ -3,7 +3,16 @@
  * Recebe a mensagem, detecta intenção, busca dados do negócio e retorna resposta.
  */
 
-import { prisma, Business, Conversation, ConversationStatus, MessageRole } from "@zapflow/database";
+import type { BusinessWithRelations, Conversation } from "@zapflow/firebase";
+import {
+  getBusinessForBot,
+  upsertConversation,
+  createMessage,
+  createMessages,
+  updateConversationStatus,
+  createAppointment,
+  createPayment,
+} from "@zapflow/firebase";
 import { detectIntent, isOpenNow, WorkingHours, formatCurrency, DAY_LABELS, renderTemplate } from "@zapflow/shared";
 import { createPixCharge } from "./pix";
 import { addMinutes, format } from "date-fns";
@@ -30,37 +39,24 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   const sessionKey = `${businessId}:${customerPhone}`;
 
   // Busca negócio com relacionamentos necessários
-  const business = await prisma.business.findUnique({
-    where: { id: businessId },
-    include: {
-      catalog: { where: { available: true }, orderBy: { sortOrder: "asc" } },
-      faqs: { where: { active: true }, orderBy: { sortOrder: "asc" } },
-      autoReplies: { where: { active: true }, orderBy: { priority: "desc" } },
-    },
-  });
+  const business = await getBusinessForBot(businessId);
 
   if (!business) return [{ text: "Negócio não encontrado." }];
 
-  // Garante conversa no banco
   const conversation = await upsertConversation(businessId, customerPhone, customerName);
 
-  // Se atendente humano assumiu, não responde automaticamente
-  if (conversation.status === ConversationStatus.ATTENDING) return [];
+  if (conversation.status === "ATTENDING") return [];
 
-  // Salva mensagem do cliente
-  await prisma.message.create({
-    data: {
-      conversationId: conversation.id,
-      role: MessageRole.CUSTOMER,
-      content: messageBody,
-    },
+  await createMessage(businessId, conversation.id, {
+    role: "CUSTOMER",
+    content: messageBody,
   });
 
   // Verifica se está fora do horário
   const open = isOpenNow(business.workingHours as WorkingHours);
   if (!open) {
     const response = business.awayMsg;
-    await saveAndReturn(conversation.id, [{ text: response }]);
+    await saveAndReturn(business.id, conversation.id, [{ text: response }]);
     return [{ text: response }];
   }
 
@@ -89,7 +85,7 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
       negocio: business.name,
     });
     const menu = buildMainMenu(business);
-    await saveAndReturn(conversation.id, [{ text }, { text: menu }]);
+    await saveAndReturn(business.id, conversation.id, [{ text }, { text: menu }]);
     return [{ text }, { text: menu }];
   }
 
@@ -113,36 +109,20 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
       return handleFAQ(messageBody, business, conversation);
 
     case "HUMAN":
-      await prisma.conversation.update({
-        where: { id: conversation.id },
-        data: { status: ConversationStatus.ATTENDING },
-      });
+      await updateConversationStatus(businessId, conversation.id, "ATTENDING");
       const msg = "Certo! Vou chamar um atendente. Aguarde um momento... 👤";
-      await saveAndReturn(conversation.id, [{ text: msg }]);
+      await saveAndReturn(businessId, conversation.id, [{ text: msg }]);
       return [{ text: msg }];
 
     default:
-      // Verifica auto-replies customizadas por keyword
-      for (const ar of business.autoReplies) {
-        if (ar.keywords.some((kw: string) => messageBody.toLowerCase().includes(kw.toLowerCase()))) {
-          const text = renderTemplate(ar.response, {
-            nome: customerName ?? "cliente",
-            negocio: business.name,
-          });
-          await saveAndReturn(conversation.id, [{ text }]);
-          return [{ text }];
-        }
-      }
-
-      // FAQ por similaridade de keywords
       const faqMatch = findFAQ(messageBody, business.faqs);
       if (faqMatch) {
-        await saveAndReturn(conversation.id, [{ text: faqMatch.answer }]);
+        await saveAndReturn(business.id, conversation.id, [{ text: faqMatch.answer }]);
         return [{ text: faqMatch.answer }];
       }
 
       const fallback = "Não entendi muito bem. 😅 Digite *menu* para ver as opções disponíveis!";
-      await saveAndReturn(conversation.id, [{ text: fallback }]);
+      await saveAndReturn(business.id, conversation.id, [{ text: fallback }]);
       return [{ text: fallback }];
   }
 }
@@ -152,7 +132,7 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
 async function handleCatalog(business: any, conversation: Conversation): Promise<BotResponse[]> {
   if (!business.catalog.length) {
     const text = "Ainda não temos um catálogo cadastrado. Entre em contato para mais informações!";
-    await saveAndReturn(conversation.id, [{ text }]);
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
 
@@ -164,7 +144,7 @@ async function handleCatalog(business: any, conversation: Conversation): Promise
   }
   text += "\nPara agendar, digite *agendar* 📅";
 
-  await saveAndReturn(conversation.id, [{ text }]);
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
 }
 
@@ -174,7 +154,7 @@ async function handleAppointmentStart(business: any, conversation: Conversation)
     text += `${i + 1}. ${item.name} — ${formatCurrency(item.price)}\n`;
   });
   text += "\nDigite o *número* do serviço:";
-  await saveAndReturn(conversation.id, [{ text }]);
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
 }
 
@@ -188,7 +168,7 @@ async function handleAppointmentService(
   const index = parseInt(ctx.messageBody.trim()) - 1;
   if (isNaN(index) || index < 0 || index >= business.catalog.length) {
     const text = "Por favor, digite o *número* do serviço desejado.";
-    await saveAndReturn(conversation.id, [{ text }]);
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
 
@@ -199,7 +179,7 @@ async function handleAppointmentService(
   });
 
   const text = `Ótimo! *${service.name}* selecionado.\n\nQual data você prefere? (ex: *15/06* ou *amanhã*)`;
-  await saveAndReturn(conversation.id, [{ text }]);
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
 }
 
@@ -226,7 +206,7 @@ async function handleAppointmentDate(
 
   if (!date || isNaN(date.getTime())) {
     const text = "Não entendi a data. Por favor, informe no formato *dd/mm* (ex: *15/06*)";
-    await saveAndReturn(conversation.id, [{ text }]);
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
 
@@ -234,7 +214,7 @@ async function handleAppointmentDate(
   conversationState.set(sessionKey, { step: "APPOINTMENT_TIME", data: state.data });
 
   const text = `Data *${format(date, "dd/MM/yyyy", { locale: ptBR })}* selecionada!\n\nQual horário prefere? (ex: *10:00* ou *14:30*)`;
-  await saveAndReturn(conversation.id, [{ text }]);
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
 }
 
@@ -250,7 +230,7 @@ async function handleAppointmentTime(
 
   if (!match) {
     const text = "Por favor, informe o horário no formato *HH:MM* (ex: *10:00*)";
-    await saveAndReturn(conversation.id, [{ text }]);
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
 
@@ -258,17 +238,16 @@ async function handleAppointmentTime(
   const baseDate = new Date(state.data.date);
   baseDate.setHours(parseInt(h), parseInt(min), 0, 0);
 
-  await prisma.appointment.create({
-    data: {
-      businessId: business.id,
-      conversationId: conversation.id,
-      customerPhone: ctx.customerPhone,
-      customerName: ctx.customerName,
-      serviceName: state.data.serviceName,
-      serviceId: state.data.serviceId,
-      scheduledAt: baseDate,
-      status: "CONFIRMED",
-    },
+  await createAppointment({
+    businessId: business.id,
+    conversationId: conversation.id,
+    customerPhone: ctx.customerPhone,
+    customerName: ctx.customerName,
+    serviceName: state.data.serviceName,
+    serviceId: state.data.serviceId,
+    scheduledAt: baseDate.toISOString(),
+    durationMins: 60,
+    status: "CONFIRMED",
   });
 
   conversationState.delete(sessionKey);
@@ -280,13 +259,13 @@ async function handleAppointmentTime(
     `🕐 Horário: *${format(baseDate, "HH:mm")}*\n\n` +
     `Te esperamos! 😊 Qualquer dúvida é só chamar.`;
 
-  await saveAndReturn(conversation.id, [{ text }]);
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
 }
 
 async function handlePaymentStart(conversation: Conversation): Promise<BotResponse[]> {
   const text = "💰 *Cobrança via PIX*\n\nQual o valor do sinal? (ex: *50* ou *150,00*)";
-  await saveAndReturn(conversation.id, [{ text }]);
+  await saveAndReturn(conversation.businessId, conversation.id, [{ text }]);
   return [{ text }];
 }
 
@@ -302,7 +281,7 @@ async function handlePaymentAmount(
 
   if (isNaN(amount) || amount <= 0) {
     const text = "Por favor, informe o valor corretamente (ex: *50* ou *150,00*)";
-    await saveAndReturn(conversation.id, [{ text }]);
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
 
@@ -319,20 +298,18 @@ async function handlePaymentAmount(
       externalRef: conversation.id,
     });
 
-    await prisma.payment.create({
-      data: {
-        businessId: business.id,
-        conversationId: conversation.id,
-        customerPhone: ctx.customerPhone,
-        customerName: ctx.customerName,
-        description: `Sinal - ${business.name}`,
-        amount,
-        pixQrCode: pix.pixQrCode,
-        pixCopyPaste: pix.pixCopyPaste,
-        asaasId: pix.asaasId,
-        status: "PENDING",
-        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-      },
+    await createPayment({
+      businessId: business.id,
+      conversationId: conversation.id,
+      customerPhone: ctx.customerPhone,
+      customerName: ctx.customerName,
+      description: `Sinal - ${business.name}`,
+      amount,
+      pixQrCode: pix.pixQrCode,
+      pixCopyPaste: pix.pixCopyPaste,
+      asaasId: pix.asaasId,
+      status: "PENDING",
+      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
     });
 
     const text =
@@ -351,14 +328,14 @@ async function handlePaymentAmount(
     responses = [{ text }];
   }
 
-  await saveAndReturn(conversation.id, responses);
+  await saveAndReturn(business.id, conversation.id, responses);
   return responses;
 }
 
 async function handleQuote(business: any, conversation: Conversation): Promise<BotResponse[]> {
   if (!business.catalog.length) {
     const text = "Você pode nos enviar mais detalhes sobre o que precisa para prepararmos um orçamento personalizado!";
-    await saveAndReturn(conversation.id, [{ text }]);
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
 
@@ -369,14 +346,14 @@ async function handleQuote(business: any, conversation: Conversation): Promise<B
   }
   text += "\n Para agendar, digite *agendar* 📅";
 
-  await saveAndReturn(conversation.id, [{ text }]);
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
 }
 
 async function handleFAQ(messageBody: string, business: any, conversation: Conversation): Promise<BotResponse[]> {
   const faq = findFAQ(messageBody, business.faqs);
   if (faq) {
-    await saveAndReturn(conversation.id, [{ text: faq.answer }]);
+    await saveAndReturn(business.id, conversation.id, [{ text: faq.answer }]);
     return [{ text: faq.answer }];
   }
 
@@ -386,7 +363,7 @@ async function handleFAQ(messageBody: string, business: any, conversation: Conve
   });
   text += "\nDigite o *número* da pergunta ou faça sua pergunta diretamente:";
 
-  await saveAndReturn(conversation.id, [{ text }]);
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
 }
 
@@ -420,38 +397,14 @@ function findFAQ(text: string, faqs: any[]): any | null {
   return null;
 }
 
-async function upsertConversation(
+async function saveAndReturn(
   businessId: string,
-  customerPhone: string,
-  customerName?: string
-): Promise<Conversation> {
-  const existing = await prisma.conversation.findUnique({
-    where: { businessId_customerPhone: { businessId, customerPhone } },
-  });
-
-  if (existing) {
-    return prisma.conversation.update({
-      where: { id: existing.id },
-      data: { lastMessageAt: new Date(), customerName: customerName ?? existing.customerName },
-    });
-  }
-
-  return prisma.conversation.create({
-    data: { businessId, customerPhone, customerName, status: "OPEN" },
-  });
-}
-
-async function saveAndReturn(conversationId: string, responses: BotResponse[]): Promise<void> {
-  await prisma.message.createMany({
-    data: responses.map((r) => ({
-      conversationId,
-      role: MessageRole.BOT,
-      content: r.text,
-    })),
-  });
-
-  await prisma.conversation.update({
-    where: { id: conversationId },
-    data: { lastMessageAt: new Date() },
-  });
+  conversationId: string,
+  responses: BotResponse[]
+): Promise<void> {
+  await createMessages(
+    businessId,
+    conversationId,
+    responses.map((r) => ({ role: "BOT", content: r.text }))
+  );
 }

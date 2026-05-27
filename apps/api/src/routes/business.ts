@@ -1,6 +1,19 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { prisma } from "@zapflow/database";
+import {
+  listBusinesses,
+  getBusinessWithRelations,
+  createBusiness,
+  updateBusiness,
+  getBusiness,
+  listCatalog,
+  createCatalogItem,
+  updateCatalogItem,
+  deleteCatalogItem,
+  listFaqs,
+  createFaq,
+  deleteFaq,
+} from "@zapflow/firebase";
 import { requireAuth } from "../middleware/auth";
 
 const businessBody = z.object({
@@ -17,24 +30,26 @@ const businessBody = z.object({
 export async function businessRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
 
-  app.get("/businesses", async (req) => {
-    return prisma.business.findMany({ where: { tenantId: req.tenantId } });
-  });
+  app.get("/businesses", async (req) => listBusinesses(req.tenantId));
 
   app.post("/businesses", async (req, reply) => {
     const body = businessBody.parse(req.body);
-    const business = await prisma.business.create({
-      data: { ...body, tenantId: req.tenantId },
+    const business = await createBusiness(req.tenantId, {
+      name: body.name,
+      type: body.type,
+      phone: body.phone,
+      address: body.address,
+      description: body.description,
+      greetingMsg: body.greetingMsg ?? "Olá! Como posso ajudar?",
+      awayMsg: body.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
+      workingHours: body.workingHours ?? {},
     });
     return reply.status(201).send(business);
   });
 
   app.get("/businesses/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const business = await prisma.business.findFirst({
-      where: { id, tenantId: req.tenantId },
-      include: { catalog: true, faqs: true, autoReplies: true },
-    });
+    const business = await getBusinessWithRelations(id, req.tenantId);
     if (!business) return reply.status(404).send({ error: "Not found" });
     return business;
   });
@@ -42,13 +57,10 @@ export async function businessRoutes(app: FastifyInstance) {
   app.put("/businesses/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
     const body = businessBody.partial().parse(req.body);
-    const exists = await prisma.business.findFirst({ where: { id, tenantId: req.tenantId } });
-    if (!exists) return reply.status(404).send({ error: "Not found" });
-
-    return prisma.business.update({ where: { id }, data: body });
+    const updated = await updateBusiness(id, req.tenantId, body);
+    if (!updated) return reply.status(404).send({ error: "Not found" });
+    return updated;
   });
-
-  // ─── Catalog ────────────────────────────────────────────────────────────────
 
   const catalogBody = z.object({
     name: z.string().min(1),
@@ -61,36 +73,32 @@ export async function businessRoutes(app: FastifyInstance) {
 
   app.get("/businesses/:id/catalog", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const exists = await prisma.business.findFirst({ where: { id, tenantId: req.tenantId } });
-    if (!exists) return reply.status(404).send({ error: "Not found" });
-    return prisma.catalogItem.findMany({ where: { businessId: id }, orderBy: { sortOrder: "asc" } });
+    if (!(await getBusiness(id, req.tenantId))) return reply.status(404).send({ error: "Not found" });
+    return listCatalog(id);
   });
 
   app.post("/businesses/:id/catalog", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const exists = await prisma.business.findFirst({ where: { id, tenantId: req.tenantId } });
-    if (!exists) return reply.status(404).send({ error: "Not found" });
+    if (!(await getBusiness(id, req.tenantId))) return reply.status(404).send({ error: "Not found" });
     const body = catalogBody.parse(req.body);
-    return reply.status(201).send(await prisma.catalogItem.create({ data: { ...body, businessId: id } }));
+    return reply.status(201).send(await createCatalogItem(id, body));
   });
 
   app.put("/businesses/:businessId/catalog/:itemId", async (req, reply) => {
     const { businessId, itemId } = req.params as { businessId: string; itemId: string };
-    const exists = await prisma.business.findFirst({ where: { id: businessId, tenantId: req.tenantId } });
-    if (!exists) return reply.status(404).send({ error: "Not found" });
+    if (!(await getBusiness(businessId, req.tenantId))) return reply.status(404).send({ error: "Not found" });
     const body = catalogBody.partial().parse(req.body);
-    return prisma.catalogItem.update({ where: { id: itemId }, data: body });
+    const item = await updateCatalogItem(businessId, itemId, body);
+    if (!item) return reply.status(404).send({ error: "Not found" });
+    return item;
   });
 
   app.delete("/businesses/:businessId/catalog/:itemId", async (req, reply) => {
     const { businessId, itemId } = req.params as { businessId: string; itemId: string };
-    const exists = await prisma.business.findFirst({ where: { id: businessId, tenantId: req.tenantId } });
-    if (!exists) return reply.status(404).send({ error: "Not found" });
-    await prisma.catalogItem.delete({ where: { id: itemId } });
+    if (!(await getBusiness(businessId, req.tenantId))) return reply.status(404).send({ error: "Not found" });
+    await deleteCatalogItem(businessId, itemId);
     return reply.status(204).send();
   });
-
-  // ─── FAQ ────────────────────────────────────────────────────────────────────
 
   const faqBody = z.object({
     question: z.string().min(5),
@@ -101,24 +109,21 @@ export async function businessRoutes(app: FastifyInstance) {
 
   app.get("/businesses/:id/faqs", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const exists = await prisma.business.findFirst({ where: { id, tenantId: req.tenantId } });
-    if (!exists) return reply.status(404).send({ error: "Not found" });
-    return prisma.fAQ.findMany({ where: { businessId: id }, orderBy: { sortOrder: "asc" } });
+    if (!(await getBusiness(id, req.tenantId))) return reply.status(404).send({ error: "Not found" });
+    return listFaqs(id);
   });
 
   app.post("/businesses/:id/faqs", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const exists = await prisma.business.findFirst({ where: { id, tenantId: req.tenantId } });
-    if (!exists) return reply.status(404).send({ error: "Not found" });
+    if (!(await getBusiness(id, req.tenantId))) return reply.status(404).send({ error: "Not found" });
     const body = faqBody.parse(req.body);
-    return reply.status(201).send(await prisma.fAQ.create({ data: { ...body, businessId: id } }));
+    return reply.status(201).send(await createFaq(id, body));
   });
 
   app.delete("/businesses/:businessId/faqs/:faqId", async (req, reply) => {
     const { businessId, faqId } = req.params as { businessId: string; faqId: string };
-    const exists = await prisma.business.findFirst({ where: { id: businessId, tenantId: req.tenantId } });
-    if (!exists) return reply.status(404).send({ error: "Not found" });
-    await prisma.fAQ.delete({ where: { id: faqId } });
+    if (!(await getBusiness(businessId, req.tenantId))) return reply.status(404).send({ error: "Not found" });
+    await deleteFaq(businessId, faqId);
     return reply.status(204).send();
   });
 }

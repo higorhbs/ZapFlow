@@ -3,6 +3,11 @@ node_modules
 dist
 .env
 .env.local
+.secrets/
 sessions/
 *.log
 .turbo
+.firebase
+apps/web/vendor
+apps/web/out
+apps/web/.env.production

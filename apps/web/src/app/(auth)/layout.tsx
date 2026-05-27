@@ -1,11 +1,10 @@
 import { GoogleAuthRedirectHandler } from "@/components/auth/GoogleAuthRedirectHandler";
-import { LoginScreen } from "@/components/auth/LoginScreen";
 
-export default function HomePage() {
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <GoogleAuthRedirectHandler />
-      <LoginScreen />
+      {children}
     </>
   );
 }

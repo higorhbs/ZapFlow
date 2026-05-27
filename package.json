@@ -5,11 +5,17 @@
   "packageManager": "npm@11.6.2",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
+    "postinstall": "node scripts/prepare-hosting.mjs",
     "dev": "turbo run dev",
     "build": "turbo run build",
     "db:push": "turbo run db:push --filter=@zapflow/database",
     "db:generate": "turbo run db:generate --filter=@zapflow/database",
-    "db:studio": "cd packages/database && npx prisma studio"
+    "db:studio": "cd packages/database && npx prisma studio",
+    "google:oauth-setup": "node scripts/google-oauth-setup.mjs",
+    "prepare:hosting": "node scripts/prepare-hosting.mjs",
+    "build:hosting": "npm run prepare:hosting && FIREBASE_STATIC=1 npm run build --workspace=@zapflow/web",
+    "deploy:hosting": "npm run build:hosting && firebase deploy --only hosting",
+    "deploy:firestore": "firebase deploy --only firestore"
   },
   "devDependencies": {
     "turbo": "^2.3.0",
@@ -20,7 +26,8 @@
   },
   "overrides": {
     "react": "$react",
-    "react-dom": "$react-dom"
+    "react-dom": "$react-dom",
+    "firebase": "^11.6.0"
   },
   "dependencies": {
     "react": "^19.1.0",

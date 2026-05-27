@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "npm run build --workspace @zapflow/database && npm run build --workspace @zapflow/shared && npm run build --workspace @zapflow/whatsapp-client && tsc -p tsconfig.json",
+    "build": "npm run build --workspace @zapflow/firebase && npm run build --workspace @zapflow/shared && npm run build --workspace @zapflow/whatsapp-client && tsc -p tsconfig.json",
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@zapflow/database": "*",
+    "@zapflow/firebase": "*",
     "@zapflow/shared": "*",
     "@zapflow/whatsapp-client": "*",
     "@hapi/boom": "^10.0.1",

@@ -1,6 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
-import jwt from "@fastify/jwt";
 import formbody from "@fastify/formbody";
 import { authRoutes } from "./routes/auth";
 import { businessRoutes } from "./routes/business";
@@ -16,9 +15,6 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(cors, { origin: process.env.CORS_ORIGIN ?? true });
   await app.register(formbody);
-  await app.register(jwt, {
-    secret: process.env.API_SECRET ?? "dev-secret-change-me",
-  });
 
   app.get("/health", () => ({ ok: true, ts: new Date().toISOString() }));
 

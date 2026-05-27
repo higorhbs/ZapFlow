@@ -1,3 +1,7 @@
+import { loadMonorepoEnv } from "./load-env";
+
+loadMonorepoEnv();
+
 import { buildApp } from "./app";
 
 async function bootstrap() {

@@ -37,7 +37,7 @@ export default function LandingPage() {
             <span className="font-bold text-gray-900">ZapFlow</span>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/login" className="text-sm text-gray-600 hover:text-gray-900">Entrar</Link>
+            <Link href="/" className="text-sm text-gray-600 hover:text-gray-900">Entrar</Link>
             <Link href="/register" className="btn-primary text-sm">Testar grátis</Link>
           </div>
         </div>
@@ -62,7 +62,7 @@ export default function LandingPage() {
             Começar grátis agora
             <ArrowRight className="w-5 h-5" />
           </Link>
-          <Link href="/login" className="btn-secondary text-base px-6 py-3">
+          <Link href="/" className="btn-secondary text-base px-6 py-3">
             Já tenho conta
           </Link>
         </div>

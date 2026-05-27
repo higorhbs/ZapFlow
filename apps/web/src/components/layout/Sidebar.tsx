@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { removeToken } from "@/lib/auth";
+import { logoutFirebase } from "@/lib/firebase-auth";
 import { useRouter } from "next/navigation";
 
 export function Sidebar() {
@@ -34,9 +35,10 @@ export function Sidebar() {
       ]
     : [];
 
-  function handleLogout() {
+  async function handleLogout() {
+    await logoutFirebase();
     removeToken();
-    router.push("/login");
+    router.push("/");
   }
 
   return (

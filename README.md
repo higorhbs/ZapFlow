@@ -18,7 +18,8 @@ SaaS de resposta automática para WhatsApp voltado a pequenos negócios (barbear
 - **Monorepo**: Turborepo
 - **API**: Fastify + TypeScript
 - **Frontend**: Next.js 14 (App Router) + Tailwind CSS
-- **Banco**: PostgreSQL + Prisma
+- **Banco**: Firebase Firestore (+ PostgreSQL/Prisma legado opcional)
+- **Auth**: Firebase Authentication
 - **Filas**: BullMQ + Redis
 - **WhatsApp**: Baileys (WhatsApp Web Protocol)
 - **PIX**: Asaas API
@@ -32,7 +33,8 @@ zapflow/
 │   ├── web/          # Dashboard Next.js (porta 3000)
 │   └── api/          # API Fastify (porta 3001)
 └── packages/
-    ├── database/     # Prisma schema + client
+    ├── database/     # Prisma (legado / seed local)
+    ├── firebase/     # Firestore + Auth (Admin + client)
     ├── shared/       # Utilitários, detecção de intent
     └── whatsapp-client/ # Wrapper Baileys
 ```
@@ -63,9 +65,11 @@ npm run db:push
 # Popule com dados de exemplo
 cd packages/database && npx tsx prisma/seed.ts
 
-# Inicie todos os serviços
+# Inicie todos os serviços (API lê o .env da raiz do monorepo)
 npm run dev
 ```
+
+A API precisa do `.env` na raiz com `GOOGLE_APPLICATION_CREDENTIALS=.secrets/firebase-adminsdk.json` (ou `FIREBASE_*` na Vercel).
 
 ### 3. Acesse
 
@@ -73,27 +77,48 @@ npm run dev
 - **API**: http://localhost:3001
 - **Login demo**: `demo@zapflow.com.br` / `demo1234`
 
-## Deploy (Vercel)
+## Deploy
 
 | App | URL |
 |-----|-----|
 | **API** | https://zap-flow-api-peach.vercel.app |
-| **Web** | defina `NEXT_PUBLIC_API_URL` apontando para a API acima |
+| **Web (Firebase Hosting)** | https://zapflow-higor-2026.web.app |
 
-**Projeto API** (`apps/api`, `prj_N74Kpq34Rkus7IroC67Alyn2c4ks`):
+**Publicar o front no Firebase Hosting**
 
-- `DATABASE_URL` — Postgres (Neon / Vercel Postgres)
-- `API_SECRET` — segredo JWT
-- `CORS_ORIGIN` — URL do dashboard (ex.: `https://seu-app.vercel.app`)
-- `ENABLE_WORKERS=false`
+```bash
+npm run deploy:hosting
+```
 
-**Projeto Web** (`apps/web`):
+Usa build estático (`apps/web/out`). Na primeira vez, rode `npm run google:oauth-setup` e inclua `https://zapflow-higor-2026.web.app` nas origens OAuth.
 
+Na API (Vercel), defina `CORS_ORIGIN=https://zapflow-higor-2026.web.app`.
+
+**Firebase (obrigatório)**
+
+1. Crie projeto em [Firebase Console](https://console.firebase.google.com)
+2. Ative **Authentication** → E-mail/senha e **Google**
+3. Em **Authentication → Settings → Authorized domains**, confira `localhost` (login local em `http://localhost:3000`)
+4. Login Google local: `npm run google:oauth-setup` → no OAuth **Web client (auto created by Google Service)** adicione redirect `http://localhost:3000/__/auth/handler` e origem JS `http://localhost:3000` (acesse só `http://localhost:3000`, não o IP da rede)
+5. Crie **Firestore** (modo produção)
+6. Deploy das regras: `firebase deploy --only firestore:rules` (com Firebase CLI)
+7. Conta de serviço → JSON → variáveis `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` na API
+8. Config do app web → `NEXT_PUBLIC_FIREBASE_*` no projeto Web
+
+**Projeto API** (`apps/api`):
+
+- `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`
+- `CORS_ORIGIN` — URL do dashboard
+- `ENABLE_WORKERS=false` na Vercel
+
+**Projeto Web** (`apps/web` — produção em `apps/web/.env.production` ou Hosting):
+
+- `NEXT_PUBLIC_FIREBASE_*` (6 variáveis)
 - `NEXT_PUBLIC_API_URL=https://zap-flow-api-peach.vercel.app`
 
 Teste: `GET https://zap-flow-api-peach.vercel.app/health` → `{ "ok": true }`
 
-**Se der `FUNCTION_INVOCATION_FAILED`:** confira `DATABASE_URL` e `API_SECRET` no projeto API, faça redeploy após alterar env vars. WhatsApp/filas exigem hospedagem persistente (`ENABLE_WORKERS=true`).
+**WhatsApp/filas:** Railway/Render com `ENABLE_WORKERS=true` (não roda na Vercel serverless).
 
 ## Configuração do WhatsApp
 

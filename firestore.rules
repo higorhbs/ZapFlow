@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isOwner(tenantId) {
+      return signedIn() && request.auth.uid == tenantId;
+    }
+    function businessOwned(businessId) {
+      return signedIn() &&
+        get(/databases/$(database)/documents/businesses/$(businessId)).data.tenantId == request.auth.uid;
+    }
+
+    match /tenants/{tenantId} {
+      allow read: if isOwner(tenantId);
+      allow create: if isOwner(tenantId);
+      allow update: if isOwner(tenantId);
+    }
+
+    match /businesses/{businessId} {
+      allow read: if businessOwned(businessId);
+      allow create: if signedIn() && request.resource.data.tenantId == request.auth.uid;
+      allow update, delete: if businessOwned(businessId);
+
+      match /catalog/{itemId} {
+        allow read, write: if businessOwned(businessId);
+      }
+      match /faqs/{faqId} {
+        allow read, write: if businessOwned(businessId);
+      }
+      match /conversations/{convId} {
+        allow read, write: if businessOwned(businessId);
+        match /messages/{msgId} {
+          allow read, write: if businessOwned(businessId);
+        }
+      }
+      match /appointments/{aptId} {
+        allow read, write: if businessOwned(businessId);
+      }
+      match /payments/{payId} {
+        allow read: if businessOwned(businessId);
+        allow write: if false;
+      }
+    }
+  }
+}

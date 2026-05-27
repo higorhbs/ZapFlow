@@ -1,12 +1,14 @@
 import axios from "axios";
 import Cookies from "js-cookie";
+import { getIdToken } from "./firebase-auth";
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001",
 });
 
-api.interceptors.request.use((config) => {
-  const token = Cookies.get("zf_token");
+api.interceptors.request.use(async (config) => {
+  const fresh = await getIdToken();
+  const token = fresh ?? Cookies.get("zf_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -15,8 +17,20 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401 && typeof window !== "undefined") {
-      Cookies.remove("zf_token");
-      window.location.href = "/login";
+      const path = window.location.pathname;
+      if (path !== "/" && !path.startsWith("/register")) {
+        Cookies.remove("zf_token");
+        window.location.href = "/";
+      }
+    }
+    const status = err.response?.status;
+    const apiMsg = err.response?.data?.error;
+    if (apiMsg && typeof apiMsg === "string") {
+      err.message = apiMsg;
+    } else if (!err.response) {
+      err.message = "API offline. Inicie com npm run dev (porta 3001).";
+    } else if (status === 401) {
+      err.message = "Sessão inválida. Entre de novo.";
     }
     return Promise.reject(err);
   }
@@ -24,10 +38,6 @@ api.interceptors.response.use(
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const authApi = {
-  register: (data: { name: string; email: string; password: string }) =>
-    api.post("/auth/register", data).then((r) => r.data),
-  login: (data: { email: string; password: string }) =>
-    api.post("/auth/login", data).then((r) => r.data),
   me: () => api.get("/auth/me").then((r) => r.data),
 };
 

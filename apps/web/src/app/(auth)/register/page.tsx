@@ -3,7 +3,9 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { authApi } from "@/lib/api";
+import { authErrorMessage, registerWithEmail } from "@/lib/firebase-auth";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { AuthDivider } from "@/components/auth/AuthDivider";
 import { setToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -33,11 +35,11 @@ export default function RegisterPage() {
 
   async function onSubmit(data: FormData) {
     try {
-      const res = await authApi.register(data);
+      const res = await registerWithEmail(data.name, data.email, data.password);
       setToken(res.token);
       router.push("/dashboard");
-    } catch (err: any) {
-      toast.error(err.response?.data?.error ?? "Falha ao criar conta");
+    } catch (err: unknown) {
+      toast.error(authErrorMessage(err, "Falha ao criar conta"));
     }
   }
 
@@ -80,6 +82,9 @@ export default function RegisterPage() {
           <h1 className="text-xl font-semibold text-gray-900 mb-1">Criar conta grátis</h1>
           <p className="text-sm text-gray-500 mb-6">14 dias sem precisar de cartão</p>
 
+          <GoogleSignInButton />
+          <AuthDivider />
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <label className="label">Nome do responsável</label>
@@ -104,7 +109,7 @@ export default function RegisterPage() {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             Já tem conta?{" "}
-            <Link href="/login" className="text-brand-600 font-medium hover:underline">
+            <Link href="/" className="text-brand-600 font-medium hover:underline">
               Entrar
             </Link>
           </p>
