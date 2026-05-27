@@ -5,8 +5,6 @@ import makeWASocket, {
   jidNormalizedUser,
   useMultiFileAuthState,
   WASocket,
-  proto,
-  AnyMessageContent,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import pino from "pino";
@@ -39,6 +37,17 @@ export class WhatsAppClient extends EventEmitter {
   }
 
   async connect() {
+    if (this.status === "open") return;
+    if (this.sock) {
+      try {
+        this.sock.end(undefined);
+      } catch {
+        /* ignore */
+      }
+      this.sock = null;
+      this.status = "close";
+    }
+
     const { state, saveCreds } = await useMultiFileAuthState(this.sessionPath);
     const { version } = await fetchLatestBaileysVersion();
 
@@ -74,10 +83,6 @@ export class WhatsAppClient extends EventEmitter {
         const code = (lastDisconnect?.error as Boom)?.output?.statusCode;
         const shouldReconnect = code !== DisconnectReason.loggedOut;
         this.emit("disconnected", { code, shouldReconnect });
-
-        if (shouldReconnect) {
-          setTimeout(() => this.connect(), 5000);
-        }
       }
     });
 
@@ -130,40 +135,6 @@ export class WhatsAppClient extends EventEmitter {
       caption,
     });
     return result?.key.id ?? undefined;
-  }
-
-  async sendButtons(to: string, text: string, buttons: { id: string; text: string }[]): Promise<void> {
-    if (!this.sock) throw new Error("Socket not connected");
-    const jid = jidNormalizedUser(to) ?? (to.includes("@") ? to : `${to}@s.whatsapp.net`);
-    await this.sock.sendMessage(jid, {
-      text,
-      footer: "Selecione uma opção:",
-      buttons: buttons.map((b) => ({
-        buttonId: b.id,
-        buttonText: { displayText: b.text },
-        type: 1,
-      })),
-    } as AnyMessageContent);
-  }
-
-  async sendList(
-    to: string,
-    header: string,
-    body: string,
-    buttonText: string,
-    sections: { title: string; rows: { id: string; title: string; description?: string }[] }[]
-  ): Promise<void> {
-    if (!this.sock) throw new Error("Socket not connected");
-    const jid = jidNormalizedUser(to) ?? (to.includes("@") ? to : `${to}@s.whatsapp.net`);
-    await this.sock.sendMessage(jid, {
-      listMessage: {
-        title: header,
-        text: body,
-        buttonText,
-        listType: proto.Message.ListMessage.ListType.SINGLE_SELECT,
-        sections,
-      },
-    } as unknown as AnyMessageContent);
   }
 
   async logout() {

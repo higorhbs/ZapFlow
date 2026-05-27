@@ -7,10 +7,9 @@
       "memory": 1024,
       "maxDuration": 30,
       "includeFiles": [
-        "../../node_modules/.prisma/**",
-        "../../node_modules/@prisma/client/**",
-        "../../packages/database/dist/**",
-        "../../packages/shared/dist/**"
+        "../../packages/firebase/dist/**",
+        "../../packages/shared/dist/**",
+        "../../packages/whatsapp-client/dist/**"
       ]
     }
   },

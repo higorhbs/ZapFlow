@@ -15,6 +15,14 @@
       }
     ],
     "rewrites": [
+      {
+        "source": "/__/auth/**",
+        "destination": "https://zapflow-higor-2026.firebaseapp.com/__/auth/**"
+      },
+      {
+        "source": "/__/firebase/**",
+        "destination": "https://zapflow-higor-2026.firebaseapp.com/__/firebase/**"
+      },
       { "source": "/businesses/*/catalog", "destination": "/index.html" },
       { "source": "/businesses/*/conversations", "destination": "/index.html" },
       { "source": "/businesses/*/appointments", "destination": "/index.html" },

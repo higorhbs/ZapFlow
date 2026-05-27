@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   MessageSquare, LayoutDashboard, Store, Calendar,
-  HelpCircle, Settings, LogOut,
+  HelpCircle, Settings, LogOut, CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { removeToken } from "@/lib/auth";
 import { logoutFirebase } from "@/lib/firebase-auth";
 import { useRouter } from "next/navigation";
+import { SidebarProfile } from "./SidebarProfile";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -22,6 +23,7 @@ export function Sidebar() {
   const baseLinks = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/businesses", icon: Store, label: "Negócios" },
+    { href: "/plan", icon: CreditCard, label: "Meu plano" },
   ];
 
   const businessLinks = businessId
@@ -97,8 +99,8 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* Footer */}
-      <div className="px-3 py-4 border-t border-gray-100">
+      <div className="px-3 py-3 border-t border-gray-100">
+        <SidebarProfile />
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-colors"

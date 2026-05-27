@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { businessApi } from "@/lib/api";
@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
+import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
 
 const schema = z.object({
   name: z.string().min(2, "Nome muito curto"),
@@ -27,7 +27,7 @@ const DAY_PT = { mon: "Seg", tue: "Ter", wed: "Qua", thu: "Qui", fri: "Sex", sat
 
 export default function NewBusinessPage() {
   const router = useRouter();
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, control, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       type: "BARBERSHOP",
@@ -72,12 +72,18 @@ export default function NewBusinessPage() {
           </div>
 
           <div>
-            <label className="label">Tipo de negócio *</label>
-            <select className="input" {...register("type")}>
-              {Object.entries(BUSINESS_TYPE_LABELS).map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
-              ))}
-            </select>
+            <label className="label mb-2 block">Tipo de negócio *</label>
+            <Controller
+              name="type"
+              control={control}
+              render={({ field }) => (
+                <BusinessTypePicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={errors.type?.message}
+                />
+              )}
+            />
           </div>
 
           <div>

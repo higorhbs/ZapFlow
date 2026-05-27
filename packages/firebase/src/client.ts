@@ -59,5 +59,11 @@ export function getClientDb(): Firestore {
   return db;
 }
 
-export { ensureClientTenant } from "./client-tenant.js";
+export {
+  ensureClientTenant,
+  getClientTenant,
+  updateClientPlan,
+  updateClientTenantProfile,
+} from "./client-tenant.js";
 export * from "./client-data.js";
+export type { Plan, PlanStatus, Tenant } from "./types.js";

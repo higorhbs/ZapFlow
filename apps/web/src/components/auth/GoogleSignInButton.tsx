@@ -15,11 +15,15 @@ export function GoogleSignInButton() {
     setLoading(true);
     try {
       const res = await loginWithGoogle();
-      if (!res) return;
+      if (!res) {
+        toast.message("Redirecionando para o Google…");
+        return;
+      }
       setToken(res.token);
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (err: unknown) {
       toast.error(authErrorMessage(err, "Falha ao entrar com Google"));
+    } finally {
       setLoading(false);
     }
   }

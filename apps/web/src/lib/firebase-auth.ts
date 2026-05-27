@@ -5,11 +5,20 @@ import {
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
+  EmailAuthProvider,
   signOut,
   onAuthStateChanged,
+  updateProfile,
+  updateEmail,
+  updatePassword,
+  reauthenticateWithCredential,
   type User,
 } from "firebase/auth";
-import { getClientAuth, ensureClientTenant } from "@zapflow/firebase/client";
+import {
+  getClientAuth,
+  ensureClientTenant,
+  updateClientTenantProfile,
+} from "@zapflow/firebase/client";
 
 async function ensureTenantProfile(user: User, name?: string) {
   const email = user.email;
@@ -35,6 +44,8 @@ export function authErrorMessage(err: unknown, fallback: string): string {
     "auth/wrong-password": "Senha incorreta.",
     "auth/email-already-in-use": "E-mail já cadastrado.",
     "auth/weak-password": "Senha muito fraca (mínimo 6 caracteres).",
+    "auth/requires-recent-login": "Por segurança, saia e entre de novo antes de alterar e-mail ou senha.",
+    "auth/invalid-email": "E-mail inválido.",
     "permission-denied": "Sem permissão no Firestore. Confira as regras e o login.",
   };
   const raw = err instanceof Error ? err.message : fallback;
@@ -81,6 +92,18 @@ async function finishGoogleLogin(user: User) {
   return { token, user };
 }
 
+function shouldFallbackToRedirect(err: unknown): boolean {
+  const code = err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
+  const msg = err instanceof Error ? err.message : "";
+  return (
+    code === "auth/popup-blocked" ||
+    code === "auth/operation-not-supported-in-this-environment" ||
+    msg.toLowerCase().includes("requested action is invalid") ||
+    msg.toLowerCase().includes("origin_mismatch") ||
+    msg.toLowerCase().includes("redirect_uri_mismatch")
+  );
+}
+
 export async function loginWithGoogle(): Promise<{ token: string; user: User } | null> {
   const auth = getClientAuth();
   const provider = googleProvider();
@@ -88,15 +111,7 @@ export async function loginWithGoogle(): Promise<{ token: string; user: User } |
     const cred = await signInWithPopup(auth, provider);
     return finishGoogleLogin(cred.user);
   } catch (err: unknown) {
-    const code = err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
-    const msg = err instanceof Error ? err.message : "";
-    const shouldUseRedirect =
-      code === "auth/popup-blocked" ||
-      code === "auth/operation-not-supported-in-this-environment" ||
-      msg.toLowerCase().includes("requested action is invalid") ||
-      msg.toLowerCase().includes("origin_mismatch") ||
-      msg.toLowerCase().includes("redirect_uri_mismatch");
-    if (shouldUseRedirect) {
+    if (shouldFallbackToRedirect(err)) {
       await signInWithRedirect(auth, provider);
       return null;
     }
@@ -104,10 +119,17 @@ export async function loginWithGoogle(): Promise<{ token: string; user: User } |
   }
 }
 
-export async function completeGoogleRedirect() {
-  const cred = await getRedirectResult(getClientAuth());
-  if (!cred?.user) return null;
-  return finishGoogleLogin(cred.user);
+let googleRedirectPromise: Promise<{ token: string; user: User } | null> | null = null;
+
+export function completeGoogleRedirect() {
+  if (!googleRedirectPromise) {
+    googleRedirectPromise = (async () => {
+      const cred = await getRedirectResult(getClientAuth());
+      if (!cred?.user) return null;
+      return finishGoogleLogin(cred.user);
+    })();
+  }
+  return googleRedirectPromise;
 }
 
 export async function getIdToken(): Promise<string | null> {
@@ -122,4 +144,36 @@ export async function logoutFirebase() {
 
 export function watchAuth(cb: (user: User | null) => void) {
   return onAuthStateChanged(getClientAuth(), cb);
+}
+
+export function hasPasswordProvider(user: User | null): boolean {
+  return !!user?.providerData.some((p) => p.providerId === "password");
+}
+
+export function hasGoogleProvider(user: User | null): boolean {
+  return !!user?.providerData.some((p) => p.providerId === "google.com");
+}
+
+export async function updateAccountName(name: string) {
+  const user = getClientAuth().currentUser;
+  if (!user) throw new Error("Faça login para continuar.");
+  await updateProfile(user, { displayName: name });
+  await updateClientTenantProfile(user.uid, { name });
+}
+
+export async function updateAccountEmail(newEmail: string, currentPassword: string) {
+  const user = getClientAuth().currentUser;
+  if (!user?.email) throw new Error("E-mail não encontrado na conta.");
+  const cred = EmailAuthProvider.credential(user.email, currentPassword);
+  await reauthenticateWithCredential(user, cred);
+  await updateEmail(user, newEmail);
+  await updateClientTenantProfile(user.uid, { email: newEmail });
+}
+
+export async function updateAccountPassword(currentPassword: string, newPassword: string) {
+  const user = getClientAuth().currentUser;
+  if (!user?.email) throw new Error("Conta sem e-mail/senha. Use login com Google.");
+  const cred = EmailAuthProvider.credential(user.email, currentPassword);
+  await reauthenticateWithCredential(user, cred);
+  await updatePassword(user, newPassword);
 }

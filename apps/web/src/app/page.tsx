@@ -1,11 +1,5 @@
-import { GoogleAuthRedirectHandler } from "@/components/auth/GoogleAuthRedirectHandler";
 import { LoginScreen } from "@/components/auth/LoginScreen";
 
 export default function HomePage() {
-  return (
-    <>
-      <GoogleAuthRedirectHandler />
-      <LoginScreen />
-    </>
-  );
+  return <LoginScreen />;
 }

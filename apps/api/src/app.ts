@@ -22,7 +22,8 @@ export async function buildApp(): Promise<FastifyInstance> {
         !corsOrigin &&
         (/^https?:\/\/localhost(:\d+)?$/.test(origin) ||
           /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
-          /^https?:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin))
+          /^https?:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin) ||
+          /^https:\/\/[a-z0-9-]+\.(web\.app|firebaseapp\.com)$/.test(origin))
       ) {
         return cb(null, true);
       }
@@ -42,14 +43,14 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(analyticsRoutes);
   await app.register(webhookRoutes);
 
-  if (process.env.ENABLE_WORKERS === "true") {
-    const { WhatsAppManager } = await import("@zapflow/whatsapp-client");
-    const { whatsappRoutes } = await import("./routes/whatsapp.js");
+  const { whatsappRoutes } = await import("./routes/whatsapp.js");
+  await app.register(whatsappRoutes);
+
+  if (process.env.ENABLE_WORKERS === "true" && process.env.VERCEL !== "1") {
+    const { waManager } = await import("./wa-manager.js");
     const { startReminderWorker, startMessageWorker } = await import(
       "./workers/message-worker.js"
     );
-    const waManager = new WhatsAppManager();
-    await app.register(whatsappRoutes(waManager));
     startMessageWorker(waManager);
     startReminderWorker(waManager);
   }

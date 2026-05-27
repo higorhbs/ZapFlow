@@ -33,10 +33,4 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(500).send({ error: "Erro ao sincronizar perfil no servidor" });
     }
   });
-
-  app.get("/auth/me", { preHandler: requireAuth }, async (req) => {
-    const tenant = await getTenant(req.tenantId);
-    if (!tenant) return { id: req.tenantId, name: "", email: req.tenantEmail ?? "", plan: "STARTER" as const };
-    return { id: tenant.id, name: tenant.name, email: tenant.email, plan: tenant.plan };
-  });
 }

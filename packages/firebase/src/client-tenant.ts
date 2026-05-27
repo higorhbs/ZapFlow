@@ -1,5 +1,5 @@
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import type { Tenant } from "./types.js";
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import type { Plan, PlanStatus, Tenant } from "./types.js";
 import { getClientDb } from "./client.js";
 
 function nowIso() {
@@ -30,4 +30,38 @@ export async function ensureClientTenant(
   };
   await setDoc(ref, tenant);
   return tenant;
+}
+
+export async function getClientTenant(id: string): Promise<Tenant | null> {
+  const snap = await getDoc(doc(getClientDb(), "tenants", id));
+  return snap.exists() ? ({ id: snap.id, ...snap.data() } as Tenant) : null;
+}
+
+export async function updateClientPlan(
+  id: string,
+  plan: Plan,
+  opts?: { planStatus?: PlanStatus }
+): Promise<Tenant> {
+  const ref = doc(getClientDb(), "tenants", id);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Conta não encontrada");
+  const current = { id: snap.id, ...snap.data() } as Tenant;
+  const trialActive = new Date() < new Date(current.trialEndsAt);
+  const planStatus = opts?.planStatus ?? (trialActive ? "TRIALING" : "ACTIVE");
+  const patch = { plan, planStatus, updatedAt: nowIso() };
+  await updateDoc(ref, patch);
+  return { ...current, ...patch };
+}
+
+export async function updateClientTenantProfile(
+  id: string,
+  data: { name?: string; email?: string }
+): Promise<Tenant> {
+  const ref = doc(getClientDb(), "tenants", id);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Conta não encontrada");
+  const current = { id: snap.id, ...snap.data() } as Tenant;
+  const patch = { ...data, updatedAt: nowIso() };
+  await updateDoc(ref, patch);
+  return { ...current, ...patch };
 }

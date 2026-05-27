@@ -2,13 +2,13 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { businessApi } from "@/lib/api";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2, Save } from "lucide-react";
 import { useEffect, use } from "react";
-import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
+import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
 
 const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const DAY_PT: Record<string, string> = {
@@ -37,7 +37,7 @@ export default function SettingsPage({ params }: { params: Promise<{ id: string 
     queryFn: () => businessApi.get(businessId),
   });
 
-  const { register, handleSubmit, reset, formState: { errors, isDirty } } = useForm<FormData>({
+  const { register, control, handleSubmit, reset, formState: { errors, isDirty } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -76,20 +76,21 @@ export default function SettingsPage({ params }: { params: Promise<{ id: string 
             {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Tipo</label>
-              <select className="input" {...register("type")}>
-                {Object.entries(BUSINESS_TYPE_LABELS).map(([v, l]) => (
-                  <option key={v} value={v}>{l}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">Telefone WhatsApp</label>
-              <input type="text" className="input" {...register("phone")} />
-              {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>}
-            </div>
+          <div>
+            <label className="label mb-2 block">Tipo de negócio</label>
+            <Controller
+              name="type"
+              control={control}
+              render={({ field }) => (
+                <BusinessTypePicker value={field.value} onChange={field.onChange} />
+              )}
+            />
+          </div>
+
+          <div>
+            <label className="label">Telefone WhatsApp</label>
+            <input type="text" className="input" {...register("phone")} />
+            {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>}
           </div>
 
           <div>

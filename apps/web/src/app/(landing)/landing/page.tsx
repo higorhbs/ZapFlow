@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MessageSquare, Calendar, QrCode, Bot, Star, CheckCircle, ArrowRight, Scissors, Coffee, Stethoscope, Store } from "lucide-react";
+import { PLAN_PRICES, planMarketingFeatures } from "@zapflow/shared";
 
 const FEATURES = [
   { icon: Bot, title: "Resposta Automática 24h", desc: "O bot atende seus clientes a qualquer hora, mesmo quando você está dormindo ou atendendo outro cliente." },
@@ -19,9 +20,9 @@ const SEGMENTS = [
 ];
 
 const PLANS = [
-  { name: "Starter", price: 97, phones: 1, msgs: "500 msg/mês", highlight: false },
-  { name: "Pro", price: 197, phones: 3, msgs: "5.000 msg/mês", highlight: true },
-  { name: "Unlimited", price: 397, phones: 10, msgs: "Ilimitado", highlight: false },
+  { id: "STARTER" as const, highlight: false },
+  { id: "PRO" as const, highlight: true },
+  { id: "UNLIMITED" as const, highlight: false },
 ];
 
 export default function LandingPage() {
@@ -134,9 +135,12 @@ export default function LandingPage() {
           <p className="text-gray-500">Sem taxas escondidas. Cancele quando quiser.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {PLANS.map((plan) => (
+          {PLANS.map((plan) => {
+            const price = PLAN_PRICES[plan.id];
+            const features = planMarketingFeatures(plan.id);
+            return (
             <div
-              key={plan.name}
+              key={plan.id}
               className={`card text-center ${plan.highlight ? "border-brand-400 ring-2 ring-brand-400 ring-offset-2" : ""}`}
             >
               {plan.highlight && (
@@ -144,22 +148,29 @@ export default function LandingPage() {
                   MAIS POPULAR
                 </div>
               )}
-              <h3 className="text-xl font-bold text-gray-900 mb-1">{plan.name}</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-1">{price.label}</h3>
               <p className="text-4xl font-extrabold text-gray-900 mb-1">
-                R$ {plan.price}
+                R$ {price.brl}
                 <span className="text-base font-normal text-gray-400">/mês</span>
               </p>
-              <ul className="text-sm text-gray-500 space-y-2 my-6">
-                <li>{plan.phones} número{plan.phones > 1 ? "s" : ""} WhatsApp</li>
-                <li>{plan.msgs}</li>
-                <li>Todas as funcionalidades</li>
-                <li>14 dias grátis</li>
+              <ul className="text-sm text-gray-500 space-y-2 my-6 text-left px-2">
+                {features.map((f) => (
+                  <li key={f} className="flex items-start gap-2">
+                    <CheckCircle className="w-4 h-4 text-brand-600 flex-shrink-0 mt-0.5" />
+                    {f}
+                  </li>
+                ))}
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 text-brand-600 flex-shrink-0 mt-0.5" />
+                  14 dias grátis
+                </li>
               </ul>
               <Link href="/register" className={plan.highlight ? "btn-primary w-full" : "btn-secondary w-full"}>
                 Começar grátis
               </Link>
             </div>
-          ))}
+          );
+          })}
         </div>
       </section>
 

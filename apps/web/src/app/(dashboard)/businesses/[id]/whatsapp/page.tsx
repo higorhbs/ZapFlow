@@ -4,8 +4,14 @@ import { useState, use } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { whatsappApi } from "@/lib/api";
 import { toast } from "sonner";
-import { Smartphone, Wifi, WifiOff, QrCode, RefreshCw, Loader2 } from "lucide-react";
+import { Smartphone, Wifi, WifiOff, QrCode, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
 import Image from "next/image";
+
+type ConnectResponse = {
+  status: string;
+  qr?: string;
+  message?: string;
+};
 
 export default function WhatsAppPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -15,23 +21,30 @@ export default function WhatsAppPage({ params }: { params: Promise<{ id: string 
   const { data: status, isLoading } = useQuery({
     queryKey: ["wa-status", id],
     queryFn: () => whatsappApi.status(id),
-    refetchInterval: 5000,
+    refetchInterval: (q) => (q.state.data?.connected ? 10000 : 5000),
   });
 
+  const waUnavailable = status?.status === "unavailable";
+
   const connectMutation = useMutation({
-    mutationFn: () => whatsappApi.connect(id),
+    mutationFn: () => whatsappApi.connect(id) as Promise<ConnectResponse>,
     onSuccess: (data) => {
-      if (data.status === "qr") {
+      if (data.status === "qr" && data.qr) {
         setQrCode(data.qr);
         toast.info("QR Code gerado! Escaneie com seu WhatsApp.");
       } else if (data.status === "already_connected" || data.status === "connected") {
+        setQrCode(null);
         toast.success("WhatsApp conectado!");
         queryClient.invalidateQueries({ queryKey: ["wa-status", id] });
-      } else {
+      } else if (data.status === "timeout") {
+        toast.error(data.message ?? "QR expirou. Gere outro código.");
+      } else if (data.status === "error") {
         toast.error(data.message ?? "Erro ao conectar");
+      } else {
+        toast.error(data.message ?? "Resposta inesperada da API");
       }
     },
-    onError: () => toast.error("Erro ao iniciar conexão"),
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao iniciar conexão"),
   });
 
   const disconnectMutation = useMutation({
@@ -41,6 +54,7 @@ export default function WhatsAppPage({ params }: { params: Promise<{ id: string 
       queryClient.invalidateQueries({ queryKey: ["wa-status", id] });
       toast.success("WhatsApp desconectado");
     },
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao desconectar"),
   });
 
   const isConnected = status?.connected;
@@ -52,8 +66,20 @@ export default function WhatsAppPage({ params }: { params: Promise<{ id: string 
         <p className="text-gray-500 mt-1">Conecte seu número para ativar o atendimento automático</p>
       </div>
 
+      {waUnavailable && (
+        <div className="mb-6 card bg-amber-50 border-amber-200 flex gap-3 text-sm text-amber-900">
+          <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium">API de produção sem WhatsApp</p>
+            <p className="mt-1 text-amber-800">
+              Para conectar, use o app em <strong>http://localhost:3000</strong> com{" "}
+              <strong>npm run dev</strong> (API na porta 3001). O WhatsApp não roda na Vercel.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="card text-center">
-        {/* Status indicator */}
         <div className="flex items-center justify-center mb-6">
           <div className={`w-20 h-20 rounded-full flex items-center justify-center ${isConnected ? "bg-green-50" : "bg-gray-100"}`}>
             {isConnected ? (
@@ -73,11 +99,9 @@ export default function WhatsAppPage({ params }: { params: Promise<{ id: string 
             : "Escaneie o QR Code para ativar o atendimento."}
         </p>
 
-        {/* QR Code */}
         {qrCode && !isConnected && (
           <div className="mb-8">
             <div className="inline-block p-4 bg-white border-2 border-gray-200 rounded-2xl shadow-sm">
-              {/* data: URLs precisam de unoptimized no Next.js */}
               <Image src={qrCode} alt="QR Code WhatsApp" width={250} height={250} unoptimized />
             </div>
             <div className="mt-4 text-sm text-gray-500 space-y-1">
@@ -89,12 +113,11 @@ export default function WhatsAppPage({ params }: { params: Promise<{ id: string 
           </div>
         )}
 
-        {/* Actions */}
         {isConnected ? (
           <button
             className="btn-danger"
             onClick={() => disconnectMutation.mutate()}
-            disabled={disconnectMutation.isPending}
+            disabled={disconnectMutation.isPending || waUnavailable}
           >
             {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <WifiOff className="w-4 h-4" />}
             Desconectar
@@ -103,7 +126,7 @@ export default function WhatsAppPage({ params }: { params: Promise<{ id: string 
           <button
             className="btn-primary"
             onClick={() => connectMutation.mutate()}
-            disabled={connectMutation.isPending}
+            disabled={connectMutation.isPending || waUnavailable}
           >
             {connectMutation.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -117,8 +140,7 @@ export default function WhatsAppPage({ params }: { params: Promise<{ id: string 
         )}
       </div>
 
-      {/* Instructions */}
-      {!isConnected && !qrCode && (
+      {!isConnected && !qrCode && !waUnavailable && (
         <div className="mt-6 card bg-brand-50 border-brand-100">
           <h3 className="font-medium text-brand-900 mb-3 flex items-center gap-2">
             <Smartphone className="w-4 h-4" />

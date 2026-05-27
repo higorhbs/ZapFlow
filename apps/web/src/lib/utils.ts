@@ -16,6 +16,19 @@ export function formatPhone(phone: string): string {
   return phone;
 }
 
+export const PLAN_LABELS: Record<string, string> = {
+  STARTER: "Starter",
+  PRO: "Pro",
+  UNLIMITED: "Unlimited",
+};
+
+export const PLAN_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  TRIALING: { label: "Período de teste", color: "bg-brand-100 text-brand-700" },
+  ACTIVE: { label: "Ativo", color: "bg-green-100 text-green-700" },
+  PAST_DUE: { label: "Pagamento pendente", color: "bg-orange-100 text-orange-700" },
+  CANCELED: { label: "Cancelado", color: "bg-gray-100 text-gray-600" },
+};
+
 export const BUSINESS_TYPE_LABELS: Record<string, string> = {
   BARBERSHOP: "Barbearia",
   SALON: "Salão / Manicure",

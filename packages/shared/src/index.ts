@@ -86,10 +86,34 @@ export function renderTemplate(template: string, vars: Record<string, string>): 
 // ─── Planos ───────────────────────────────────────────────────────────────────
 
 export const PLAN_LIMITS = {
-  STARTER: { phones: 1, messagesPerMonth: 500 },
-  PRO: { phones: 3, messagesPerMonth: 5000 },
-  UNLIMITED: { phones: 10, messagesPerMonth: Infinity },
+  STARTER: { phones: 1, messagesPerMonth: 500, catalogItems: 20, appointmentsPerMonth: 50 },
+  PRO: { phones: 3, messagesPerMonth: 5000, catalogItems: 100, appointmentsPerMonth: 500 },
+  UNLIMITED: {
+    phones: 10,
+    messagesPerMonth: Infinity,
+    catalogItems: Infinity,
+    appointmentsPerMonth: Infinity,
+  },
 } as const;
+
+export type PlanTier = keyof typeof PLAN_LIMITS;
+
+export function formatPlanLimit(value: number): string {
+  if (!Number.isFinite(value)) return "Ilimitado";
+  return value.toLocaleString("pt-BR");
+}
+
+export function planMarketingFeatures(plan: PlanTier): string[] {
+  const l = PLAN_LIMITS[plan];
+  return [
+    `${l.phones} número${l.phones > 1 ? "s" : ""} WhatsApp`,
+    l.messagesPerMonth === Infinity
+      ? "Mensagens ilimitadas"
+      : `${formatPlanLimit(l.messagesPerMonth)} mensagens/mês`,
+    `${formatPlanLimit(l.catalogItems)} itens no catálogo`,
+    `${formatPlanLimit(l.appointmentsPerMonth)} agendamentos/mês`,
+  ];
+}
 
 export const PLAN_PRICES = {
   STARTER: { brl: 97, label: "Starter" },

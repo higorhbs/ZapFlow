@@ -5,29 +5,6 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    logging: *default-logging
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    shm_size: "128m"
-    mem_limit: "512m"
-    cpus: "1.0"
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -60,32 +37,28 @@ services:
     init: true
     logging: *default-logging
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     ports:
-      - "${API_PORT}:3001"
+      - "${API_PORT:-3001}:3001"
     environment:
       NODE_ENV: production
-      ENABLE_WORKERS: ${ENABLE_WORKERS}
-      CORS_ORIGIN: ${CORS_ORIGIN}
+      ENABLE_WORKERS: ${ENABLE_WORKERS:-true}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
       API_PORT: 3001
-      API_SECRET: ${API_SECRET}
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379
       WA_SESSION_PATH: /app/sessions
-      ASAAS_API_KEY: ${ASAAS_API_KEY}
-      ASAAS_BASE_URL: ${ASAAS_BASE_URL}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/.secrets/firebase-adminsdk.json
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
+      ASAAS_API_KEY: ${ASAAS_API_KEY:-}
+      ASAAS_BASE_URL: ${ASAAS_BASE_URL:-https://sandbox.asaas.com/api/v3}
     volumes:
       - wa_sessions:/app/sessions
-    read_only: true
-    tmpfs:
-      - /tmp:size=64m
+      - ./.secrets:/app/.secrets:ro
     mem_limit: "512m"
     cpus: "1.5"
 
 volumes:
-  pg_data:
   redis_data:
   wa_sessions:

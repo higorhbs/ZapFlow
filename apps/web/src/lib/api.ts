@@ -1,6 +1,11 @@
 import axios from "axios";
 import Cookies from "js-cookie";
-import { getIdToken } from "./firebase-auth";
+import {
+  getIdToken,
+  updateAccountName,
+  updateAccountEmail,
+  updateAccountPassword,
+} from "./firebase-auth";
 import { getClientAuth } from "@zapflow/firebase/client";
 import {
   listClientBusinesses,
@@ -14,7 +19,10 @@ import {
   listClientFaqs,
   createClientFaq,
   deleteClientFaq,
+  getClientTenant,
+  updateClientPlan,
 } from "@zapflow/firebase/client";
+import type { Plan } from "@zapflow/firebase/client";
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001",
@@ -44,8 +52,14 @@ api.interceptors.response.use(
       }
     }
     const status = err.response?.status;
-    const apiMsg = err.response?.data?.error;
-    if (apiMsg && typeof apiMsg === "string") {
+    const data = err.response?.data;
+    const apiMsg =
+      typeof data?.error === "string"
+        ? data.error
+        : typeof data?.message === "string"
+          ? data.message
+          : null;
+    if (apiMsg) {
       err.message = apiMsg;
     } else if (!err.response) {
       err.message = "API offline. Inicie com npm run dev (porta 3001).";
@@ -57,8 +71,18 @@ api.interceptors.response.use(
 );
 
 export const authApi = {
-  me: () => api.get("/auth/me").then((r) => r.data),
   sync: (name?: string) => api.post("/auth/sync", { name }).then((r) => r.data),
+};
+
+export const tenantApi = {
+  get: () => getClientTenant(requireUid()),
+  updatePlan: (plan: Plan) => updateClientPlan(requireUid(), plan),
+};
+
+export const profileApi = {
+  updateName: (name: string) => updateAccountName(name),
+  updateEmail: (email: string, password: string) => updateAccountEmail(email, password),
+  updatePassword: (current: string, next: string) => updateAccountPassword(current, next),
 };
 
 export const businessApi = {
