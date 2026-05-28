@@ -23,12 +23,12 @@
         "source": "/__/firebase/**",
         "destination": "https://zapflow-higor-2026.firebaseapp.com/__/firebase/**"
       },
-      { "source": "/businesses/*/catalog", "destination": "/index.html" },
-      { "source": "/businesses/*/conversations", "destination": "/index.html" },
-      { "source": "/businesses/*/appointments", "destination": "/index.html" },
-      { "source": "/businesses/*/faqs", "destination": "/index.html" },
-      { "source": "/businesses/*/whatsapp", "destination": "/index.html" },
-      { "source": "/businesses/*/settings", "destination": "/index.html" }
+      { "source": "/businesses/*/conversations", "destination": "/businesses/app/conversations.html" },
+      { "source": "/businesses/*/catalog", "destination": "/businesses/app/catalog.html" },
+      { "source": "/businesses/*/appointments", "destination": "/businesses/app/appointments.html" },
+      { "source": "/businesses/*/faqs", "destination": "/businesses/app/faqs.html" },
+      { "source": "/businesses/*/whatsapp", "destination": "/businesses/app/whatsapp.html" },
+      { "source": "/businesses/*/settings", "destination": "/businesses/app/settings.html" }
     ]
   }
 }

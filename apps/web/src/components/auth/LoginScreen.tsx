@@ -15,6 +15,7 @@ import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { AuthDivider } from "@/components/auth/AuthDivider";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { PLAN_PRICES, planMarketingFeatures } from "@zapflow/shared";
 import {
   MessageSquare,
   Loader2,
@@ -24,7 +25,15 @@ import {
   CreditCard,
   Zap,
   ChevronRight,
+  Check,
+  Crown,
 } from "lucide-react";
+
+const PLANS: { id: keyof typeof PLAN_PRICES; highlight?: boolean; extras?: string[] }[] = [
+  { id: "STARTER" },
+  { id: "PRO", highlight: true, extras: ["Cobrança PIX automática", "Relatórios avançados"] },
+  { id: "UNLIMITED", extras: ["Suporte prioritário", "Tudo do Pro"] },
+];
 
 const loginSchema = z.object({
   email: z.string().email("E-mail inválido"),
@@ -240,7 +249,7 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-50 overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-50 overflow-hidden scroll-smooth">
       {/* Header */}
       <header className="px-6 py-5 flex items-center justify-between max-w-6xl mx-auto">
         <div className="flex items-center gap-2">
@@ -249,12 +258,20 @@ export function LoginScreen() {
           </div>
           <span className="text-xl font-bold text-gray-900">ZapFlow</span>
         </div>
-        <button
-          onClick={() => open("login")}
-          className="text-sm font-medium text-brand-600 hover:text-brand-700 transition-colors"
-        >
-          Entrar
-        </button>
+        <nav className="flex items-center gap-6">
+          <a
+            href="#planos"
+            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            Planos
+          </a>
+          <button
+            onClick={() => open("login")}
+            className="text-sm font-medium text-brand-600 hover:text-brand-700 transition-colors"
+          >
+            Entrar
+          </button>
+        </nav>
       </header>
 
       {/* Hero */}
@@ -307,6 +324,66 @@ export function LoginScreen() {
             </div>
           ))}
         </div>
+
+        {/* Plans */}
+        <section id="planos" className="mt-28 scroll-mt-24">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">Planos simples e transparentes</h2>
+            <p className="text-gray-500 text-base">
+              Comece grátis por 14 dias. Sem cartão de crédito.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {PLANS.map(({ id, highlight, extras = [] }) => {
+              const price = PLAN_PRICES[id];
+              const featureList = [...planMarketingFeatures(id), ...extras];
+
+              return (
+                <div
+                  key={id}
+                  className={`relative bg-white rounded-2xl border p-7 flex flex-col shadow-sm transition-shadow hover:shadow-md ${
+                    highlight
+                      ? "border-brand-400 ring-2 ring-brand-400 ring-offset-2"
+                      : "border-gray-200"
+                  }`}
+                >
+                  {highlight && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full bg-brand-600 px-3 py-1 text-xs font-semibold text-white shadow">
+                      <Crown className="w-3 h-3" />
+                      Mais popular
+                    </span>
+                  )}
+
+                  <h3 className="text-lg font-bold text-gray-900">{price.label}</h3>
+                  <p className="mt-2 mb-6">
+                    <span className="text-4xl font-extrabold text-gray-900">
+                      R${price.brl}
+                    </span>
+                    <span className="text-sm text-gray-500">/mês</span>
+                  </p>
+
+                  <ul className="space-y-2.5 text-sm text-gray-600 flex-1 mb-8">
+                    {featureList.map((f) => (
+                      <li key={f} className="flex items-start gap-2">
+                        <Check className="w-4 h-4 text-brand-600 flex-shrink-0 mt-0.5" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button
+                    type="button"
+                    onClick={() => open("register")}
+                    className={highlight ? "btn-primary w-full py-2.5" : "btn-secondary w-full py-2.5"}
+                  >
+                    Começar grátis
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       </main>
 
       {/* Overlay */}

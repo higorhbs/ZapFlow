@@ -14,20 +14,25 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const auth = getClientAuth();
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        setUid(null);
-        setReady(false);
-        router.replace("/");
-        return;
-      }
-      setUid(user.uid);
-      authApi
-        .sync(user.displayName ?? undefined)
-        .catch(() => {})
-        .finally(() => setReady(true));
+    let unsub = () => {};
+
+    auth.authStateReady().then(() => {
+      unsub = onAuthStateChanged(auth, (user) => {
+        if (!user) {
+          setUid(null);
+          setReady(false);
+          router.replace("/");
+          return;
+        }
+        setUid(user.uid);
+        authApi
+          .sync(user.displayName ?? undefined)
+          .catch(() => {})
+          .finally(() => setReady(true));
+      });
     });
-    return unsub;
+
+    return () => unsub();
   }, [router]);
 
   if (!ready) {
