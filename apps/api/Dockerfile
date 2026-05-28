@@ -28,7 +28,7 @@ COPY packages/firebase/package*.json packages/firebase/
 COPY packages/shared/package*.json packages/shared/
 COPY packages/whatsapp-client/package*.json packages/whatsapp-client/
 
-RUN npm ci --omit=dev --workspaces --include-workspace-root && npm cache clean --force
+RUN npm ci --omit=dev --workspaces --include-workspace-root --ignore-scripts && npm cache clean --force
 
 COPY --from=builder /app/apps/api/dist apps/api/dist
 COPY --from=builder /app/packages/firebase/dist packages/firebase/dist
