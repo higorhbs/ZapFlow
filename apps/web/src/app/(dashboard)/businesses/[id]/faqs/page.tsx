@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { businessApi, faqApi } from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
@@ -20,6 +21,7 @@ export interface BotMenuItemConfig {
   action: "APPOINTMENT" | "CATALOG" | "FAQ" | "HUMAN";
   label: string;
   enabled: boolean;
+  emoji?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -48,6 +50,92 @@ type FAQForm = z.infer<typeof faqSchema>;
 // ── Tabs ───────────────────────────────────────────────────────────────────────
 type Tab = "menu" | "faqs";
 
+// ── Emoji picker ───────────────────────────────────────────────────────────────
+const EMOJI_CATS = [
+  { icon: "⭐", label: "Populares",  emojis: ["⭐","✅","🎯","💬","📢","🔥","💡","🏆","👏","🙏","💯","🎉","✨","⚡","🆕","❤️","😊","👍","🤩","😍","🥰","😎","🤝","💪","🙌","🫶","💥","🌟","🎊","🎈","🎀","🪄","🎗️","🏅","🥇","🌈"] },
+  { icon: "💼", label: "Negócios",  emojis: ["📅","📋","📌","🛍️","💰","💳","🏪","🏬","📦","🚚","✉️","📞","💼","🤝","📊","🗓️","🧾","💹","🏷️","🪙","💵","💸","📈","📉","🏦","🏧","🖨️","🖥️","📱","💻","🖱️","⌨️","🗃️","📁","📂","🗄️","📬","📮","📯"] },
+  { icon: "🧑", label: "Serviços",  emojis: ["👤","👥","💇","💈","✂️","🦷","🩺","🧑‍🍳","👨‍⚕️","🧑‍🔧","💆","🧴","💅","🪒","🏋️","🧹","🪑","🛁","🛒","🧺","🪣","🧽","🪠","🧲","🔧","🪛","🔨","⚙️","🩹","💊","🩻","🔬","🧪","🧬","🏥","🏫","🏗️","🏠","🏡"] },
+  { icon: "🍽️", label: "Comida",    emojis: ["🍕","🍔","🍣","🌮","🍝","🍰","☕","🥤","🍺","🥗","🍱","🧁","🍦","🥐","🍳","🫖","🧃","🍷","🥩","🍗","🌭","🥪","🫔","🥫","🍜","🍲","🍛","🍤","🦐","🦀","🥚","🧀","🥞","🧇","🥓","🥨","🍞","🥖","🫓","🧆","🥙","🫕"] },
+  { icon: "💡", label: "Símbolos",  emojis: ["❓","❗","ℹ️","🔔","🔍","🔑","🚪","⏰","📍","🗺️","🎫","♻️","✏️","📝","📣","🆘","🔒","🔓","🔕","💤","⛔","🚫","⚠️","✔️","❌","➕","➖","🔃","🔄","▶️","⏸️","⏹️","🔺","🔻","🔷","🔶","🔹","🔸","🟢","🔴","🟡","🟠","🟣","⚫","⚪"] },
+] as const;
+
+function EmojiPickerBalloon({
+  anchor,
+  onSelect,
+  onClear,
+  onClose,
+}: {
+  anchor: HTMLElement;
+  onSelect: (e: string) => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  const [cat, setCat] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+  const [style, setStyle] = useState<React.CSSProperties>({ visibility: "hidden", position: "fixed", zIndex: 9999 });
+
+  useEffect(() => {
+    const PICKER_W = 296;
+    const PICKER_H = 260;
+    const rect = anchor.getBoundingClientRect();
+    let left = rect.left;
+    let top  = rect.bottom + 6;
+    if (left + PICKER_W > window.innerWidth - 8) left = Math.max(8, rect.right - PICKER_W);
+    if (top + PICKER_H > window.innerHeight - 8) top  = rect.top - PICKER_H - 6;
+    setStyle({ visibility: "visible", position: "fixed", zIndex: 9999, top, left });
+  }, [anchor]);
+
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node) && !anchor.contains(e.target as Node)) onClose();
+    }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown",   onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [anchor, onClose]);
+
+  return createPortal(
+    <div ref={ref} style={style}
+      className="w-[296px] rounded-2xl bg-white shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-100 overflow-hidden"
+    >
+      {/* Categoria tabs */}
+      <div className="flex items-center border-b border-gray-100 bg-gray-50 px-1.5 pt-1.5 gap-0.5">
+        {EMOJI_CATS.map((c, ci) => (
+          <button key={ci} type="button" onClick={() => setCat(ci)}
+            title={c.label}
+            className={cn(
+              "flex-1 flex items-center justify-center py-1.5 text-[18px] rounded-t-lg transition-colors",
+              cat === ci ? "bg-white border-b-2 border-brand-500 shadow-sm" : "hover:bg-white/70 text-gray-400"
+            )}
+          >{c.icon}</button>
+        ))}
+        {/* Limpar */}
+        <button type="button" onClick={() => { onClear(); onClose(); }}
+          title="Sem emoji"
+          className="w-8 flex items-center justify-center py-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-t-lg transition-colors"
+        ><X className="w-3.5 h-3.5" /></button>
+      </div>
+
+      {/* Label da categoria */}
+      <p className="px-3 pt-2 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+        {EMOJI_CATS[cat]!.label}
+      </p>
+
+      {/* Grid de emojis */}
+      <div className="grid grid-cols-9 gap-0 px-1.5 pb-2 max-h-[176px] overflow-y-auto">
+        {EMOJI_CATS[cat]!.emojis.map((emoji) => (
+          <button key={emoji} type="button"
+            onClick={() => { onSelect(emoji); onClose(); }}
+            className="w-8 h-8 flex items-center justify-center text-[18px] rounded-lg hover:bg-gray-100 active:scale-90 transition-all"
+          >{emoji}</button>
+        ))}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ── BotMenuEditor ──────────────────────────────────────────────────────────────
 function BotMenuEditor({ businessId, initialMenu, businessName }: {
   businessId: string;
@@ -61,6 +149,8 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newAction, setNewAction] = useState<BotMenuItemConfig["action"]>("APPOINTMENT");
+  // picker: qual botão de emoji está aberto — índice do item, "new" para o form de adição, ou null
+  const [pickerAnchor, setPickerAnchor] = useState<{ el: HTMLElement; target: number | "new" } | null>(null);
 
   const saveMutation = useMutation({
     mutationFn: () => businessApi.update(businessId, { botMenu: items } as any),
@@ -72,19 +162,21 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
   });
 
   function move(index: number, dir: -1 | 1) {
-    const next = [...items];
-    const target = index + dir;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target]!, next[index]!];
-    setItems(next.map((it, i) => ({ ...it, num: i + 1 })));
+    setItems(prev => {
+      const next = [...prev];
+      const target = index + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target]!, next[index]!];
+      return next.map((it, i) => ({ ...it, num: i + 1 }));
+    });
   }
 
   function toggle(index: number) {
-    setItems(items.map((it, i) => i === index ? { ...it, enabled: !it.enabled } : it));
+    setItems(prev => prev.map((it, i) => i === index ? { ...it, enabled: !it.enabled } : it));
   }
 
   function removeItem(index: number) {
-    setItems(items.filter((_, i) => i !== index).map((it, i) => ({ ...it, num: i + 1 })));
+    setItems(prev => prev.filter((_, i) => i !== index).map((it, i) => ({ ...it, num: i + 1 })));
   }
 
   function startEdit(index: number) {
@@ -95,23 +187,66 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
   function commitEdit() {
     if (editingIndex === null) return;
     const trimmed = editingLabel.trim();
-    if (trimmed) setItems(items.map((it, i) => i === editingIndex ? { ...it, label: trimmed } : it));
+    if (trimmed) setItems(prev => prev.map((it, i) => i === editingIndex ? { ...it, label: trimmed } : it));
     setEditingIndex(null);
   }
 
   function addItem() {
     const trimmed = newLabel.trim();
     if (!trimmed) return;
-    setItems([...items, { num: items.length + 1, action: newAction, label: trimmed, enabled: true }]);
+    setItems(prev => [...prev, {
+      num: prev.length + 1,
+      action: newAction,
+      label: trimmed,
+      enabled: true,
+      emoji: ACTION_META[newAction].emoji,
+    }]);
     setNewLabel("");
     setNewAction("APPOINTMENT");
     setShowAddForm(false);
   }
 
+  function handleEmojiSelect(emoji: string) {
+    if (!pickerAnchor) return;
+    if (pickerAnchor.target === "new") {
+      // Para o form de adição: guardamos no emoji do action temporariamente via uma variável local
+      // Como o add form ainda não existe como item, injetamos via state de "newEmoji" — mas removemos esse state
+      // Simplesmente, quando addItem for chamado usaremos o emoji selecionado
+      // Solução: manter um state auxiliar só para isso
+      setPendingNewEmoji(emoji);
+    } else {
+      setItems(prev => prev.map((it, i) => i === pickerAnchor.target ? { ...it, emoji } : it));
+    }
+  }
+
+  function handleEmojiClear() {
+    if (!pickerAnchor) return;
+    if (pickerAnchor.target !== "new") {
+      setItems(prev => prev.map((it, i) => i === pickerAnchor.target ? { ...it, emoji: undefined } : it));
+    } else {
+      setPendingNewEmoji("");
+    }
+  }
+
+  // emoji temporário para o form de adição (antes de virar item)
+  const [pendingNewEmoji, setPendingNewEmoji] = useState<string>("");
+  // sempre sincroniza o emoji padrão quando a action muda
+  const displayNewEmoji = pendingNewEmoji || ACTION_META[newAction].emoji;
+
   const previewLines = buildPreviewLines(items, businessName);
 
   return (
     <div className="grid lg:grid-cols-[1fr_320px] gap-6 max-w-3xl mx-auto">
+      {/* Emoji picker balloon — portal, renderizado fora de qualquer overflow */}
+      {pickerAnchor && (
+        <EmojiPickerBalloon
+          anchor={pickerAnchor.el}
+          onSelect={handleEmojiSelect}
+          onClear={handleEmojiClear}
+          onClose={() => setPickerAnchor(null)}
+        />
+      )}
+
       {/* Editor */}
       <div>
         <p className="text-sm text-gray-500 mb-4">
@@ -123,9 +258,10 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
             const meta = ACTION_META[item.action];
             const Icon = meta.icon;
             const isEditing = editingIndex === i;
+            const displayEmoji = item.emoji ?? meta.emoji;
             return (
               <div
-                key={i}
+                key={`${item.action}-${i}`}
                 className={cn(
                   "flex items-center gap-2.5 px-4 py-3 transition-colors",
                   item.enabled ? "bg-white" : "bg-gray-50 opacity-60"
@@ -139,7 +275,24 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
                   {item.num}
                 </span>
 
-                {/* Label — editable */}
+                {/* Emoji button — abre picker ao clicar */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPickerAnchor(prev =>
+                      prev?.target === i ? null : { el: e.currentTarget, target: i }
+                    );
+                  }}
+                  className={cn(
+                    "w-8 h-8 flex items-center justify-center text-[18px] rounded-lg flex-shrink-0 transition-colors",
+                    pickerAnchor?.target === i ? "bg-brand-100 ring-2 ring-brand-400" : "hover:bg-gray-100"
+                  )}
+                >
+                  {displayEmoji}
+                </button>
+
+                {/* Label — modo edição */}
                 {isEditing ? (
                   <div className="flex items-center gap-1.5 flex-1 min-w-0">
                     <input
@@ -158,6 +311,7 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
                     </button>
                   </div>
                 ) : (
+                  /* Label — modo visualização */
                   <button
                     type="button"
                     onClick={() => startEdit(i)}
@@ -181,48 +335,31 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
                 {/* Controls */}
                 {!isEditing && (
                   <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {/* Up / Down */}
                     <div className="flex rounded-lg border border-gray-200 overflow-hidden divide-x divide-gray-200">
-                      <button
-                        type="button"
-                        onClick={() => move(i, -1)}
-                        disabled={i === 0}
-                        className="w-7 h-7 flex items-center justify-center text-brand-600 hover:bg-brand-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
-                      >
+                      <button type="button" onClick={() => move(i, -1)} disabled={i === 0}
+                        className="w-7 h-7 flex items-center justify-center text-brand-600 hover:bg-brand-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors">
                         <ChevronUp className="w-3.5 h-3.5" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => move(i, 1)}
-                        disabled={i === items.length - 1}
-                        className="w-7 h-7 flex items-center justify-center text-brand-600 hover:bg-brand-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
-                      >
+                      <button type="button" onClick={() => move(i, 1)} disabled={i === items.length - 1}
+                        className="w-7 h-7 flex items-center justify-center text-brand-600 hover:bg-brand-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors">
                         <ChevronDown className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
-                    {/* Toggle enable */}
-                    <button
-                      type="button"
-                      onClick={() => toggle(i)}
+                    <button type="button" onClick={() => toggle(i)}
                       className={cn(
                         "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
                         "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
                         item.enabled ? "bg-brand-600" : "bg-gray-200"
-                      )}
-                    >
+                      )}>
                       <span className={cn(
                         "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200",
                         item.enabled ? "translate-x-4" : "translate-x-0"
                       )} />
                     </button>
 
-                    {/* Delete */}
-                    <button
-                      type="button"
-                      onClick={() => removeItem(i)}
-                      className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                    >
+                    <button type="button" onClick={() => removeItem(i)}
+                      className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -230,64 +367,72 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
               </div>
             );
           })}
-
-          {/* Add item inline form */}
-          {showAddForm && (
-            <div className="px-4 py-3 bg-brand-50 flex items-center gap-2 flex-wrap">
-              <input
-                type="text"
-                value={newLabel}
-                onChange={(e) => setNewLabel(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") addItem(); if (e.key === "Escape") { setShowAddForm(false); setNewLabel(""); } }}
-                placeholder="Nome do item…"
-                autoFocus
-                className="flex-1 min-w-[140px] text-sm border border-gray-300 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 bg-white"
-              />
-              <select
-                value={newAction}
-                onChange={(e) => setNewAction(e.target.value as BotMenuItemConfig["action"])}
-                className="text-sm border border-gray-300 rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-brand-300 bg-white"
-              >
-                <option value="APPOINTMENT">📅 Agendamento</option>
-                <option value="CATALOG">🛍️ Catálogo</option>
-                <option value="FAQ">❓ FAQ</option>
-                <option value="HUMAN">👤 Atendente</option>
-              </select>
-              <button
-                type="button"
-                onClick={addItem}
-                disabled={!newLabel.trim()}
-                className="btn-primary py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Adicionar
-              </button>
-              <button type="button" onClick={() => { setShowAddForm(false); setNewLabel(""); }} className="text-gray-400 hover:text-gray-600 p-1">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Add item trigger */}
-        {!showAddForm && (
-          <button
-            type="button"
-            onClick={() => setShowAddForm(true)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 mb-4 rounded-xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50 transition-all"
+        {/* Formulário de adição */}
+        {showAddForm ? (
+          <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 mb-3 flex items-center gap-2 flex-wrap">
+            {/* Emoji picker trigger para novo item */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPickerAnchor(prev =>
+                  prev?.target === "new" ? null : { el: e.currentTarget, target: "new" }
+                );
+              }}
+              className={cn(
+                "w-9 h-9 flex items-center justify-center text-[20px] rounded-lg border border-gray-300 bg-white flex-shrink-0 transition-colors",
+                pickerAnchor?.target === "new" ? "ring-2 ring-brand-400 bg-brand-50" : "hover:bg-gray-50"
+              )}
+            >
+              {displayNewEmoji}
+            </button>
+            <input
+              type="text"
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addItem(); if (e.key === "Escape") { setShowAddForm(false); setNewLabel(""); setPendingNewEmoji(""); } }}
+              placeholder="Nome do item…"
+              autoFocus
+              className="flex-1 min-w-[120px] text-sm border border-gray-300 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 bg-white"
+            />
+            <select
+              value={newAction}
+              onChange={(e) => { setNewAction(e.target.value as BotMenuItemConfig["action"]); setPendingNewEmoji(""); }}
+              className="text-sm border border-gray-300 rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-brand-300 bg-white"
+            >
+              <option value="APPOINTMENT">📅 Agendamento</option>
+              <option value="CATALOG">🛍️ Catálogo</option>
+              <option value="FAQ">❓ FAQ</option>
+              <option value="HUMAN">👤 Atendente</option>
+            </select>
+            <button type="button" onClick={() => {
+              const trimmed = newLabel.trim();
+              if (!trimmed) return;
+              setItems(prev => [...prev, { num: prev.length + 1, action: newAction, label: trimmed, enabled: true, emoji: displayNewEmoji }]);
+              setNewLabel(""); setNewAction("APPOINTMENT"); setPendingNewEmoji(""); setShowAddForm(false);
+            }}
+              disabled={!newLabel.trim()}
+              className="btn-primary py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Adicionar
+            </button>
+            <button type="button" onClick={() => { setShowAddForm(false); setNewLabel(""); setPendingNewEmoji(""); }} className="text-gray-400 hover:text-gray-600 p-1">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setShowAddForm(true)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50 transition-all"
           >
             <Plus className="w-4 h-4" />
             Adicionar item
           </button>
         )}
-        {showAddForm && <div className="mb-4" />}
 
-        <button
-          type="button"
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending}
-          className="btn-primary"
-        >
+        <button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="btn-primary">
           {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Salvar menu
         </button>
@@ -458,8 +603,9 @@ function buildPreviewLines(items: BotMenuItemConfig[], name: string): WaLine[] {
   lines.push({ text: `*Menu — ${name}*` });
   lines.push({ blank: true });
   enabled.forEach((e) => {
-    const emoji = ACTION_META[e.action].emoji;
-    lines.push({ text: `*${e.num}* — ${emoji} ${e.label}` });
+    const emoji = e.emoji ?? ACTION_META[e.action].emoji;
+    const prefix = emoji ? `${emoji} ` : "";
+    lines.push({ text: `*${e.num}* — ${prefix}${e.label}` });
   });
   lines.push({ blank: true });
   lines.push({ text: `*0* — 👋 Sair` });

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, type User } from "firebase/auth";
 import { getClientAuth } from "@zapflow/firebase/client";
 import { authApi } from "@/lib/api";
 import { AuthContext } from "@/contexts/auth-context";
@@ -16,20 +16,23 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
     const auth = getClientAuth();
     let unsub = () => {};
 
-    auth.authStateReady().then(() => {
-      unsub = onAuthStateChanged(auth, (user) => {
-        if (!user) {
-          setUid(null);
-          setReady(false);
-          router.replace("/");
-          return;
-        }
-        setUid(user.uid);
-        authApi
-          .sync(user.displayName ?? undefined)
-          .catch(() => {})
-          .finally(() => setReady(true));
-      });
+    const applyUser = (user: User | null) => {
+      if (!user) {
+        setUid(null);
+        setReady(false);
+        router.replace("/");
+        return;
+      }
+      setUid(user.uid);
+      authApi
+        .sync(user.displayName ?? undefined)
+        .catch(() => {})
+        .finally(() => setReady(true));
+    };
+
+    void auth.authStateReady().then(() => {
+      applyUser(auth.currentUser);
+      unsub = onAuthStateChanged(auth, applyUser);
     });
 
     return () => unsub();

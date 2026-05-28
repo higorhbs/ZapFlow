@@ -524,13 +524,14 @@ const ACTION_EMOJI: Record<string, string> = {
 
 function buildMainMenu(business: { name: string; botMenu?: unknown[] }): string {
   if (business.botMenu && business.botMenu.length > 0) {
-    const entries = (business.botMenu as Array<{ num: number; action: string; label: string; enabled: boolean }>)
+    const entries = (business.botMenu as Array<{ num: number; action: string; label: string; enabled: boolean; emoji?: string }>)
       .filter((e) => e.enabled !== false)
       .map((e, i) => ({ ...e, num: i + 1 }));
     let text = `*Menu — ${business.name}*\n\n`;
     for (const e of entries) {
-      const emoji = ACTION_EMOJI[e.action] ?? "";
-      text += `*${e.num}* — ${emoji} ${e.label}\n`;
+      const emoji = e.emoji ?? ACTION_EMOJI[e.action] ?? "";
+      const prefix = emoji ? `${emoji} ` : "";
+      text += `*${e.num}* — ${prefix}${e.label}\n`;
     }
     text += `\n*0* — 👋 Sair\n\n`;
     text += `_Palavras: agendar, catálogo, dúvida, atendente_`;

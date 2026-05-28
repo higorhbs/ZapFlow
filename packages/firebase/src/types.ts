@@ -29,6 +29,7 @@ export interface BotMenuItemConfig {
   action: "APPOINTMENT" | "CATALOG" | "FAQ" | "HUMAN";
   label: string;
   enabled: boolean;
+  emoji?: string;
 }
 
 export interface Business {

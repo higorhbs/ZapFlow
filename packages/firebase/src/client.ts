@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import {
   getAuth,
   initializeAuth,
+  setPersistence,
   browserLocalPersistence,
   type Auth,
 } from "firebase/auth";
@@ -44,9 +45,16 @@ export function getClientAuth(): Auth {
       });
     } catch {
       auth = getAuth(app);
+      void setPersistence(auth, browserLocalPersistence);
     }
   }
   return auth;
+}
+
+export async function waitForAuthReady(): Promise<Auth> {
+  const instance = getClientAuth();
+  await instance.authStateReady();
+  return instance;
 }
 
 export function getClientDb(): Firestore {
