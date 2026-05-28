@@ -31,6 +31,9 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
     if (code === "auth/id-token-expired") {
       return reply.status(401).send({ error: "Sessão expirada. Saia e entre novamente." });
     }
+    if (code === "auth/id-token-revoked") {
+      return reply.status(401).send({ error: "Sessão revogada. Saia e entre novamente." });
+    }
     if (code === "app/invalid-credential" || code === "auth/invalid-credential") {
       return reply.status(503).send({
         error: "Credencial Firebase Admin inválida no servidor. Revise FIREBASE_SERVICE_ACCOUNT_JSON.",

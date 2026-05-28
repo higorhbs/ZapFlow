@@ -22,27 +22,27 @@ FULL_SA="$ROOT/$SA_PATH"
 
 JSON_ONELINE="$(node -e "console.log(JSON.stringify(require(process.argv[1])))" "$FULL_SA")"
 
-cat > .env.oracle <<EOF
-API_DOMAIN=${API_DOMAIN}
-ACME_EMAIL=${ACME_EMAIL:-admin@${API_DOMAIN#api.}}
-ENABLE_WORKERS=true
-CORS_ORIGIN=https://zapflow-higor-2026.web.app,https://zapflow-higor-2026.firebaseapp.com
-
-FIREBASE_PROJECT_ID=zapflow-higor-2026
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-fbsvc@zapflow-higor-2026.iam.gserviceaccount.com
-FIREBASE_SERVICE_ACCOUNT_JSON=${JSON_ONELINE}
-GOOGLE_APPLICATION_CREDENTIALS=/app/.secrets/firebase-adminsdk.json
-
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-STRIPE_PRICE_STARTER=
-STRIPE_PRICE_PRO=
-STRIPE_PRICE_UNLIMITED=
-EOF
-
-if [ -f .env ]; then
-  grep -E '^STRIPE_|^ASAAS_' .env >> .env.oracle 2>/dev/null || true
-fi
+{
+  echo "API_DOMAIN=${API_DOMAIN}"
+  echo "ACME_EMAIL=${ACME_EMAIL:-admin@${API_DOMAIN#api.}}"
+  echo "ENABLE_WORKERS=true"
+  echo "CORS_ORIGIN=https://zapflow-higor-2026.web.app,https://zapflow-higor-2026.firebaseapp.com"
+  echo ""
+  echo "FIREBASE_PROJECT_ID=zapflow-higor-2026"
+  echo "FIREBASE_CLIENT_EMAIL=firebase-adminsdk-fbsvc@zapflow-higor-2026.iam.gserviceaccount.com"
+  echo "FIREBASE_SERVICE_ACCOUNT_JSON=${JSON_ONELINE}"
+  echo "GOOGLE_APPLICATION_CREDENTIALS=/app/.secrets/firebase-adminsdk.json"
+  echo ""
+  if [ -f .env ]; then
+    grep -E '^(STRIPE_|ASAAS_)' .env | grep -v '^#' || true
+  else
+    echo "STRIPE_SECRET_KEY="
+    echo "STRIPE_WEBHOOK_SECRET="
+    echo "STRIPE_PRICE_STARTER="
+    echo "STRIPE_PRICE_PRO="
+    echo "STRIPE_PRICE_UNLIMITED="
+  fi
+} > .env.oracle
 
 echo "Gerado: .env.oracle"
 echo "Copie para a VM: scp .env.oracle opc@IP_VM:/opt/zapflow/.env"

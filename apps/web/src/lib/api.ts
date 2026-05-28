@@ -1,11 +1,10 @@
 import axios from "axios";
-import Cookies from "js-cookie";
 import {
-  getIdToken,
   updateAccountName,
   updateAccountEmail,
   updateAccountPassword,
 } from "./firebase-auth";
+import { setToken } from "./auth";
 import { getClientAuth } from "@zapflow/firebase/client";
 import {
   listClientBusinesses,
@@ -90,19 +89,39 @@ async function ensureTenantRecord() {
 }
 
 api.interceptors.request.use(async (config) => {
-  const fresh = await getIdToken(true);
-  const token = fresh ?? Cookies.get("zf_token");
+  const user = getClientAuth().currentUser;
+  if (!user) return config;
+  const token = await user.getIdToken(false);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    Cookies.set("zf_token", token, { expires: 1 });
+    setToken(token);
   }
   return config;
 });
 
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
+  async (err) => {
+    const config = err.config as typeof err.config & { _authRetry?: boolean };
     const status = err.response?.status;
+
+    if (status === 401 && config && !config._authRetry) {
+      const user = getClientAuth().currentUser;
+      if (user) {
+        config._authRetry = true;
+        try {
+          const token = await user.getIdToken(true);
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+            setToken(token);
+            return api(config);
+          }
+        } catch {
+          /* refresh falhou */
+        }
+      }
+    }
+
     const data = err.response?.data;
     const apiMsg =
       typeof data?.error === "string"

@@ -107,14 +107,15 @@ function BusinessCard({ business }: { business: any }) {
         <div>
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold text-gray-900">{business.name}</h2>
-            <span
+            <Link
+              href={`/businesses/${business.id}/whatsapp`}
               className={cn(
-                "badge",
+                "badge hover:opacity-80 transition-opacity",
                 business.isConnected ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
               )}
             >
               {business.isConnected ? "● Conectado" : "○ Desconectado"}
-            </span>
+            </Link>
           </div>
           <p className="text-sm text-gray-500 mt-0.5">{business.phone}</p>
         </div>
