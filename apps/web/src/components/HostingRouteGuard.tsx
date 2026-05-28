@@ -11,6 +11,11 @@ export function HostingRouteGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!pathname || !isFirebaseHostingClient()) return;
 
+    if (pathname.includes("$") || window.location.pathname.includes("$")) {
+      window.location.replace(hostingHref("/dashboard"));
+      return;
+    }
+
     const txtFix = sanitizeHostingPath(pathname);
     if (txtFix) {
       window.location.replace(txtFix);

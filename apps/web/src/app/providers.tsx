@@ -6,6 +6,7 @@ import { watchAuth, completeGoogleRedirect, authErrorMessage } from "@/lib/fireb
 import { setToken, removeToken } from "@/lib/auth";
 import { AuthDrawerProvider } from "@/contexts/auth-drawer-context";
 import { HostingRouteGuard } from "@/components/HostingRouteGuard";
+import { hostingHref, isFirebaseHostingClient } from "@/lib/hosting-href";
 import { toast } from "sonner";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -25,7 +26,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       .then((res) => {
         if (!active || !res) return;
         setToken(res.token);
-        window.location.replace("/dashboard");
+        const dest = isFirebaseHostingClient() ? hostingHref("/dashboard") : "/dashboard";
+        window.location.replace(dest);
       })
       .catch((err: unknown) => {
         if (!active) return;

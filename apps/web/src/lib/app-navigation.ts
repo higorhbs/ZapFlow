@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo } from "react";
+import { hostingHref } from "@/lib/hosting-href";
 
 type AppRouter = ReturnType<typeof useRouter>;
 
@@ -20,7 +21,7 @@ export function useAppRouter(): AppRouter {
   const push = useCallback(
     (href: string, options?: Parameters<AppRouter["push"]>[1]) => {
       if (hard) {
-        window.location.assign(href);
+        window.location.assign(hostingHref(href));
         return;
       }
       router.push(href, options);
@@ -31,7 +32,7 @@ export function useAppRouter(): AppRouter {
   const replace = useCallback(
     (href: string, options?: Parameters<AppRouter["replace"]>[1]) => {
       if (hard) {
-        window.location.replace(href);
+        window.location.replace(hostingHref(href));
         return;
       }
       router.replace(href, options);
