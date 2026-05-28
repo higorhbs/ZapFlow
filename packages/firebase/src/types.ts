@@ -13,6 +13,9 @@ export interface Tenant {
   plan: Plan;
   planStatus: PlanStatus;
   stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  stripePriceId?: string;
+  currentPeriodEnd?: string;
   onboardingCompletedAt?: string;
   lgpdAcceptedAt?: string;
   lgpdPolicyVersion?: string;

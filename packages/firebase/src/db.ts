@@ -102,6 +102,13 @@ export async function getTenantByEmail(email: string): Promise<Tenant | null> {
   return { id: doc.id, ...doc.data() } as Tenant;
 }
 
+export async function getTenantByStripeCustomerId(customerId: string): Promise<Tenant | null> {
+  const snap = await tenants().where("stripeCustomerId", "==", customerId).limit(1).get();
+  if (snap.empty) return null;
+  const doc = snap.docs[0]!;
+  return { id: doc.id, ...doc.data() } as Tenant;
+}
+
 export async function createTenant(
   id: string,
   data: { name: string; email: string; plan?: Plan; planStatus?: PlanStatus }
@@ -121,6 +128,18 @@ export async function createTenant(
   };
   await tenants().doc(id).set(tenant);
   return tenant;
+}
+
+export async function updateTenant(
+  id: string,
+  data: Partial<Tenant>
+): Promise<Tenant | null> {
+  const existing = await getTenant(id);
+  if (!existing) return null;
+  const patch = { ...data, updatedAt: nowIso() };
+  delete (patch as { id?: string }).id;
+  await tenants().doc(id).update(patch);
+  return { ...existing, ...patch } as Tenant;
 }
 
 // ─── Businesses ──────────────────────────────────────────────────────────────

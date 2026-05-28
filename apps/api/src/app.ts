@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import formbody from "@fastify/formbody";
+import fastifyRawBody from "fastify-raw-body";
 import { authRoutes } from "./routes/auth";
 import { businessRoutes } from "./routes/business";
 import { conversationRoutes } from "./routes/conversations";
@@ -9,6 +10,7 @@ import { analyticsRoutes } from "./routes/analytics";
 import { webhookRoutes } from "./routes/webhooks";
 import { privacyRoutes } from "./routes/privacy";
 import { runPrivacyRetentionForAllTenants } from "./services/privacy-compliance";
+import { billingRoutes } from "./routes/billing";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -35,6 +37,13 @@ export async function buildApp(): Promise<FastifyInstance> {
     credentials: true,
   });
   await app.register(formbody);
+  await app.register(fastifyRawBody, {
+    field: "rawBody",
+    global: false,
+    encoding: "utf8",
+    runFirst: true,
+    routes: ["/webhooks/stripe"],
+  });
 
   app.get("/health", () => ({ ok: true, ts: new Date().toISOString() }));
 
@@ -43,6 +52,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(conversationRoutes);
   await app.register(appointmentRoutes);
   await app.register(analyticsRoutes);
+  await app.register(billingRoutes);
   await app.register(privacyRoutes);
   await app.register(webhookRoutes);
 

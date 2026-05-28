@@ -1,13 +1,13 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { tenantApi, businessApi } from "@/lib/api";
+import { tenantApi, businessApi, billingApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { PLAN_LABELS, PLAN_STATUS_LABELS, cn, formatCurrency } from "@/lib/utils";
 import { PLAN_LIMITS, PLAN_PRICES, planMarketingFeatures, formatPlanLimit } from "@zapflow/shared";
 import type { Plan } from "@zapflow/firebase/client";
 import { toast } from "sonner";
-import { Check, Crown, Loader2, Sparkles, Zap, ArrowRight, CalendarDays, BookOpen } from "lucide-react";
+import { Check, Crown, Loader2, Sparkles, Zap, ArrowRight, CalendarDays, BookOpen, CreditCard } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -46,12 +46,22 @@ export default function PlanPage() {
   });
 
   const selectPlan = useMutation({
-    mutationFn: (plan: Plan) => tenantApi.updatePlan(plan),
-    onSuccess: (_, plan) => {
-      queryClient.invalidateQueries({ queryKey: ["tenant", uid] });
-      toast.success(`Plano ${PLAN_LABELS[plan]} selecionado!`);
+    mutationFn: async (plan: Plan) => {
+      const res = await billingApi.checkout(plan);
+      if (!res?.url) throw new Error("Não foi possível iniciar checkout Stripe.");
+      window.location.href = res.url;
+      return plan;
     },
-    onError: (err: Error) => toast.error(err.message ?? "Erro ao alterar plano"),
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao iniciar checkout"),
+  });
+
+  const openPortal = useMutation({
+    mutationFn: async () => {
+      const res = await billingApi.portal();
+      if (!res?.url) throw new Error("Não foi possível abrir portal de cobrança.");
+      window.location.href = res.url;
+    },
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao abrir portal Stripe"),
   });
 
   if (isLoading || !tenant) {
@@ -126,13 +136,22 @@ export default function PlanPage() {
             Teste até {format(new Date(tenant.trialEndsAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
           </p>
         )}
+        <button
+          type="button"
+          onClick={() => openPortal.mutate()}
+          disabled={openPortal.isPending || !tenant.stripeCustomerId}
+          className="relative mt-4 btn-secondary text-xs bg-white/10 border-white/20 text-white hover:bg-white/20 disabled:opacity-40"
+        >
+          {openPortal.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+          Gerenciar cobrança
+        </button>
       </div>
 
       {/* Plans comparison */}
       <div className="mb-5">
         <h3 className="text-base font-semibold text-gray-900 mb-1">Planos disponíveis</h3>
         <p className="text-sm text-gray-500">
-          A troca é imediata. Cobrança por cartão será integrada em breve.
+          Assinatura e cobrança processadas com Stripe.
         </p>
       </div>
 

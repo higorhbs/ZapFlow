@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "source": "apps/api",
+    "runtime": "nodejs20",
+    "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
+  },
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
@@ -15,6 +20,7 @@
       }
     ],
     "rewrites": [
+      { "source": "/api/**", "function": "api" },
       { "source": "/businesses/*/conversations", "destination": "/businesses/app/conversations.html" },
       { "source": "/businesses/*/catalog", "destination": "/businesses/app/catalog.html" },
       { "source": "/businesses/*/appointments", "destination": "/businesses/app/appointments.html" },

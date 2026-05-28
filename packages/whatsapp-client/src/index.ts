@@ -49,7 +49,13 @@ export class WhatsAppClient extends EventEmitter {
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(this.sessionPath);
-    const { version } = await fetchLatestBaileysVersion();
+    let version: [number, number, number];
+    try {
+      const latest = await fetchLatestBaileysVersion();
+      version = latest.version as [number, number, number];
+    } catch {
+      version = [2, 3000, 1015901307];
+    }
 
     this.sock = makeWASocket({
       version,

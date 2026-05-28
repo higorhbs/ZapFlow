@@ -21,18 +21,57 @@ import {
   deleteClientFaq,
   getClientTenant,
   updateClientPlan,
+  ensureClientTenant,
   completeClientOnboarding,
+  acceptClientLgpd,
 } from "@zapflow/firebase/client";
 import type { Plan } from "@zapflow/firebase/client";
 
+function isLocalDevHost() {
+  if (typeof window === "undefined") return false;
+  return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+}
+
+function resolveApiBaseUrl() {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (configured) return configured;
+  return isLocalDevHost() ? "http://localhost:3001" : "/api";
+}
+
+function hasPublicApi() {
+  return Boolean(resolveApiBaseUrl());
+}
+
+function getStripePaymentLink(plan: "STARTER" | "PRO" | "UNLIMITED") {
+  const links: Record<"STARTER" | "PRO" | "UNLIMITED", string | undefined> = {
+    STARTER: process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_STARTER?.trim(),
+    PRO: process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO?.trim(),
+    UNLIMITED: process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_UNLIMITED?.trim(),
+  };
+  return links[plan] ?? "";
+}
+
+function getStripePortalLink() {
+  return process.env.NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL?.trim() ?? "";
+}
+
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001",
+  baseURL: resolveApiBaseUrl(),
 });
 
 function requireUid(): string {
   const uid = getClientAuth().currentUser?.uid;
   if (!uid) throw new Error("Faça login para continuar.");
   return uid;
+}
+
+async function ensureTenantRecord() {
+  const user = getClientAuth().currentUser;
+  if (!user?.email) throw new Error("E-mail não encontrado na conta.");
+  await ensureClientTenant(user.uid, {
+    name: user.displayName ?? user.email.split("@")[0] ?? "Usuário",
+    email: user.email,
+  });
 }
 
 api.interceptors.request.use(async (config) => {
@@ -63,7 +102,12 @@ api.interceptors.response.use(
     if (apiMsg) {
       err.message = apiMsg;
     } else if (!err.response) {
-      err.message = "API offline. Inicie com npm run dev (porta 3001).";
+      const isLocal =
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+      err.message = isLocal
+        ? "API offline. Inicie com npm run dev (porta 3001)."
+        : "API de produção indisponível. Configure NEXT_PUBLIC_API_URL com a URL pública da API.";
     } else if (status === 401) {
       err.message = "Sessão inválida. Entre de novo.";
     }
@@ -72,15 +116,23 @@ api.interceptors.response.use(
 );
 
 export const authApi = {
-  sync: (name?: string) => api.post("/auth/sync", { name }).then((r) => r.data),
+  sync: async (name?: string) => {
+    if (!hasPublicApi() && !isLocalDevHost()) return null;
+    return api.post("/auth/sync", { name }).then((r) => r.data);
+  },
 };
 
 export const tenantApi = {
   get: () => getClientTenant(requireUid()),
   updatePlan: (plan: Plan) => updateClientPlan(requireUid(), plan),
-  completeOnboarding: () => completeClientOnboarding(requireUid()),
-  acceptLgpd: (policyVersion: string) =>
-    api.post("/privacy/consent", { policyVersion }).then((r) => r.data),
+  completeOnboarding: async () => {
+    await ensureTenantRecord();
+    return completeClientOnboarding(requireUid());
+  },
+  acceptLgpd: async (policyVersion: string) => {
+    await ensureTenantRecord();
+    return acceptClientLgpd(requireUid(), policyVersion);
+  },
 };
 
 export const profileApi = {
@@ -166,6 +218,29 @@ export const appointmentApi = {
     api.get(`/businesses/${businessId}/appointments`, { params }).then((r) => r.data),
   patch: (businessId: string, appointmentId: string, data: Record<string, unknown>) =>
     api.patch(`/businesses/${businessId}/appointments/${appointmentId}`, data).then((r) => r.data),
+};
+
+export const billingApi = {
+  checkout: (plan: "STARTER" | "PRO" | "UNLIMITED") => {
+    const directLink = getStripePaymentLink(plan);
+    if (directLink) {
+      return Promise.resolve({ url: directLink });
+    }
+    if (!hasPublicApi()) {
+      throw new Error(`Link Stripe do plano ${plan} não configurado.`);
+    }
+    return api.post("/billing/checkout", { plan }).then((r) => r.data as { url?: string });
+  },
+  portal: () => {
+    const portalLink = getStripePortalLink();
+    if (portalLink) {
+      return Promise.resolve({ url: portalLink });
+    }
+    if (!hasPublicApi()) {
+      throw new Error("Portal Stripe não configurado.");
+    }
+    return api.post("/billing/portal").then((r) => r.data as { url?: string });
+  },
 };
 
 const emptyAnalytics = {
