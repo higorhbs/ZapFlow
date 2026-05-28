@@ -47,8 +47,9 @@ export default function WhatsAppPage() {
       } else if (data.status === "already_connected" || data.status === "connected") {
         setQrCode(null);
         void queryClient.invalidateQueries({ queryKey: ["wa-status", id] });
-      } else if (data.status === "pending") {
-        toast.info(data.message ?? "Escaneie o QR e aguarde a confirmação.");
+      } else if (data.status === "connecting" || data.status === "pending") {
+        toast.info(data.message ?? "Gerando QR Code… aguarde nesta tela.");
+        void queryClient.invalidateQueries({ queryKey: ["wa-status", id] });
       } else if (data.status === "timeout") {
         toast.error(data.message ?? "QR expirou. Gere outro código.");
       } else if (data.status === "error") {

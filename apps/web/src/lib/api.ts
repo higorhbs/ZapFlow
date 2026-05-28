@@ -215,13 +215,24 @@ export const conversationApi = {
     api.patch(`/businesses/${businessId}/conversations/${conversationId}/close`).then((r) => r.data),
 };
 
+async function wakeProductionApi() {
+  if (!isProductionHost() && !isLocalDevHost()) return;
+  try {
+    await api.get("/health", { timeout: 120_000 });
+  } catch {
+    /* Render free pode demorar no cold start */
+  }
+}
+
 export const whatsappApi = {
-  connect: (businessId: string, force = false) =>
-    api
+  connect: async (businessId: string, force = false) => {
+    await wakeProductionApi();
+    return api
       .post(`/businesses/${businessId}/whatsapp/connect${force ? "?force=1" : ""}`, undefined, {
-        timeout: 70_000,
+        timeout: 25_000,
       })
-      .then((r) => r.data),
+      .then((r) => r.data);
+  },
   status: (businessId: string) =>
     api.get(`/businesses/${businessId}/whatsapp/status`).then((r) => r.data),
   disconnect: (businessId: string) =>

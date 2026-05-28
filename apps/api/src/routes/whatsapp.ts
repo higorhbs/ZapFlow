@@ -21,7 +21,7 @@ function waUnavailable(reply: FastifyReply) {
   });
 }
 
-function waitForQr(client: WhatsAppClient, timeoutMs = 60_000): Promise<ConnectResult> {
+function waitForQr(client: WhatsAppClient, timeoutMs = 12_000): Promise<ConnectResult> {
   if (client.isConnected()) {
     return Promise.resolve({ status: "already_connected" });
   }
@@ -29,7 +29,7 @@ function waitForQr(client: WhatsAppClient, timeoutMs = 60_000): Promise<ConnectR
     return Promise.resolve({ status: "qr", qr: client.lastQrDataUrl });
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const timer = setTimeout(() => {
       client.off("qr", onQr);
       if (client.lastQrDataUrl) {
@@ -37,8 +37,8 @@ function waitForQr(client: WhatsAppClient, timeoutMs = 60_000): Promise<ConnectR
         return;
       }
       resolve({
-        status: "pending",
-        message: "Aguardando QR. Mantenha esta tela aberta e tente gerar novamente.",
+        status: "connecting",
+        message: "Gerando QR Code. Aguarde alguns segundos nesta tela.",
       });
     }, timeoutMs);
 
@@ -49,11 +49,6 @@ function waitForQr(client: WhatsAppClient, timeoutMs = 60_000): Promise<ConnectR
     };
 
     client.once("qr", onQr);
-    void client.connect().catch((err) => {
-      clearTimeout(timer);
-      client.off("qr", onQr);
-      reject(err);
-    });
   });
 }
 
@@ -136,11 +131,15 @@ export async function whatsappRoutes(app: FastifyInstance) {
       return reply.send({ status: "already_connected" });
     }
 
+    if (client.lastQrDataUrl && !force) {
+      return reply.send({ status: "qr", qr: client.lastQrDataUrl });
+    }
+
     try {
       void client.connect().catch((err) => {
         req.log.error({ err }, "whatsapp background connect failed");
       });
-      const result = await waitForQr(client);
+      const result = await waitForQr(client, 12_000);
       return reply.send(result);
     } catch (err) {
       req.log.error({ err }, "whatsapp connect failed");

@@ -14,8 +14,9 @@ export function useSyncWhatsAppBusiness(businessId: string) {
     queryFn: () => whatsappApi.status(businessId),
     refetchInterval: (q) => {
       if (q.state.data?.connected) return 15000;
-      if (q.state.data?.qr) return 1500;
-      return 2000;
+      if (q.state.data?.qr) return 1200;
+      if (q.state.data?.status === "connecting" || q.state.data?.status === "qr") return 1200;
+      return 2500;
     },
   });
 
