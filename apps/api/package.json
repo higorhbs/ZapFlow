@@ -6,17 +6,17 @@
     "node": "20"
   },
   "scripts": {
-    "dev": "npm run build --workspace @zapflow/firebase && npm run build --workspace @zapflow/shared && tsx watch src/index.ts",
-    "build": "npm run build --workspace @zapflow/firebase && npm run build --workspace @zapflow/shared && npm run build --workspace @zapflow/whatsapp-client && tsc -p tsconfig.json",
+    "dev": "pnpm --filter @zapflow/firebase build && pnpm --filter @zapflow/shared build && tsx watch src/index.ts",
+    "build": "pnpm --filter @zapflow/firebase build && pnpm --filter @zapflow/shared build && pnpm --filter @zapflow/whatsapp-client build && tsc -p tsconfig.json",
     "start": "node dist/index.js"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
     "@fastify/formbody": "^7.4.0",
     "@hapi/boom": "^10.0.1",
-    "@zapflow/firebase": "*",
-    "@zapflow/shared": "*",
-    "@zapflow/whatsapp-client": "*",
+    "@zapflow/firebase": "workspace:*",
+    "@zapflow/shared": "workspace:*",
+    "@zapflow/whatsapp-client": "workspace:*",
     "axios": "^1.7.7",
     "bullmq": "^5.14.0",
     "date-fns": "^3.6.0",

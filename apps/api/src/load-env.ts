@@ -22,14 +22,11 @@ function loadEnvFile(filePath: string) {
 
 export function loadMonorepoEnv() {
   const candidates = [
-    resolve(process.cwd(), ".env"),
-    resolve(process.cwd(), "../.env"),
     resolve(process.cwd(), "../../.env"),
+    resolve(process.cwd(), "../.env"),
+    resolve(process.cwd(), ".env"),
   ];
   for (const filePath of candidates) {
-    if (existsSync(filePath)) {
-      loadEnvFile(filePath);
-      return;
-    }
+    if (existsSync(filePath)) loadEnvFile(filePath);
   }
 }

@@ -22,8 +22,8 @@ function copyPkg(name) {
   });
 }
 
-run("npm run build --workspace=@zapflow/firebase");
-run("npm run build --workspace=@zapflow/shared");
+run("pnpm --filter @zapflow/firebase build");
+run("pnpm --filter @zapflow/shared build");
 mkdirSync(vendorRoot, { recursive: true });
 copyPkg("firebase");
 copyPkg("shared");

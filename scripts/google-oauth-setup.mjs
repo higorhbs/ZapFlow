@@ -37,7 +37,7 @@ console.log(`NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${project}.web.app`);
 console.log("Dev: http://localhost:3000 (nunca 192.168.x.x)");
 console.log("Produção:", site);
 console.log("\nLink OAuth client:", clientUrl);
-console.log("Salve, aguarde ~2 min, reinicie npm run dev\n");
+console.log("Salve, aguarde ~2 min, reinicie pnpm dev\n");
 
 const { execSync } = await import("node:child_process");
 try {

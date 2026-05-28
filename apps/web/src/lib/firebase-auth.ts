@@ -103,17 +103,17 @@ export function authErrorMessage(err: unknown, fallback: string): string {
   if (raw.toLowerCase().includes("requested action is invalid")) {
     const origin =
       typeof window !== "undefined" ? window.location.origin : "sua URL";
-    return `Login Google inválido em ${origin}. Use http://localhost:3000 no dev ou confira OAuth (npm run google:oauth-setup): origens JS + redirect /__/auth/handler para localhost e zapflow-higor-2026.web.app.`;
+    return `Login Google inválido em ${origin}. Use http://localhost:3000 no dev ou confira OAuth (pnpm google:oauth-setup): origens JS + redirect /__/auth/handler para localhost e zapflow-higor-2026.web.app.`;
   }
   if (raw.toLowerCase().includes("bloqueado pelo navegador")) {
     return "O login com Google foi bloqueado pelo navegador. Permita pop-ups para este site e tente novamente.";
   }
   if (raw.toLowerCase().includes("origin_mismatch")) {
-    return "Use http://localhost:3000 (não IP da rede). Se persistir: npm run google:oauth-setup.";
+    return "Use http://localhost:3000 (não IP da rede). Se persistir: pnpm google:oauth-setup.";
   }
   if (raw.toLowerCase().includes("redirect_uri_mismatch")) {
     const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "SEU-DOMINIO";
-    return `Redirect URI inválida. No Google Cloud → Credentials → OAuth Client, adicione exatamente: https://${authDomain}/__/auth/handler (rode npm run google:oauth-setup).`;
+    return `Redirect URI inválida. No Google Cloud → Credentials → OAuth Client, adicione exatamente: https://${authDomain}/__/auth/handler (rode pnpm google:oauth-setup).`;
   }
   return map[code] ?? raw;
 }

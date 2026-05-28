@@ -2,16 +2,17 @@
   "name": "zapflow",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "npm@11.6.2",
-  "workspaces": ["apps/*", "packages/*"],
+  "packageManager": "pnpm@10.12.4",
   "scripts": {
     "postinstall": "node scripts/prepare-hosting.mjs",
     "dev": "turbo run dev",
+    "dev:web": "pnpm --filter @zapflow/web dev",
+    "dev:api": "pnpm --filter @zapflow/api dev",
     "build": "turbo run build",
     "google:oauth-setup": "node scripts/google-oauth-setup.mjs",
     "prepare:hosting": "node scripts/prepare-hosting.mjs",
-    "build:hosting": "npm run prepare:hosting && FIREBASE_STATIC=1 npm run build --workspace=@zapflow/web",
-    "deploy:hosting": "npm run build:hosting && firebase deploy --only hosting",
+    "build:hosting": "pnpm run prepare:hosting && FIREBASE_STATIC=1 pnpm --filter @zapflow/web build",
+    "deploy:hosting": "pnpm run build:hosting && firebase deploy --only hosting",
     "deploy:firestore": "firebase deploy --only firestore",
     "oracle:prep-env": "bash scripts/oracle/prep-local-env.sh"
   },
@@ -22,10 +23,12 @@
   "engines": {
     "node": ">=20"
   },
-  "overrides": {
-    "react": "$react",
-    "react-dom": "$react-dom",
-    "firebase": "^11.6.0"
+  "pnpm": {
+    "overrides": {
+      "react": "$react",
+      "react-dom": "$react-dom",
+      "firebase": "^11.6.0"
+    }
   },
   "dependencies": {
     "react": "^19.1.0",

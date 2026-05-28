@@ -1,34 +1,36 @@
 FROM node:20-alpine AS builder
+RUN corepack enable
 WORKDIR /app
 
-COPY package*.json ./
-COPY apps/api/package*.json apps/api/
-COPY packages/firebase/package*.json packages/firebase/
-COPY packages/shared/package*.json packages/shared/
-COPY packages/whatsapp-client/package*.json packages/whatsapp-client/
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/api/package.json apps/api/
+COPY packages/firebase/package.json packages/firebase/
+COPY packages/shared/package.json packages/shared/
+COPY packages/whatsapp-client/package.json packages/whatsapp-client/
 
-RUN npm ci --ignore-scripts
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY apps/api apps/api
 COPY packages/firebase packages/firebase
 COPY packages/shared packages/shared
 COPY packages/whatsapp-client packages/whatsapp-client
-RUN npm run build --workspace @zapflow/firebase \
-  && npm run build --workspace @zapflow/shared \
-  && npm run build --workspace @zapflow/whatsapp-client \
-  && npm run build --workspace @zapflow/api
+RUN pnpm --filter @zapflow/firebase build \
+  && pnpm --filter @zapflow/shared build \
+  && pnpm --filter @zapflow/whatsapp-client build \
+  && pnpm --filter @zapflow/api build
 
 FROM node:20-alpine AS runner
+RUN corepack enable
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY package*.json ./
-COPY apps/api/package*.json apps/api/
-COPY packages/firebase/package*.json packages/firebase/
-COPY packages/shared/package*.json packages/shared/
-COPY packages/whatsapp-client/package*.json packages/whatsapp-client/
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/api/package.json apps/api/
+COPY packages/firebase/package.json packages/firebase/
+COPY packages/shared/package.json packages/shared/
+COPY packages/whatsapp-client/package.json packages/whatsapp-client/
 
-RUN npm ci --omit=dev --workspaces --include-workspace-root --ignore-scripts && npm cache clean --force
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts && pnpm store prune
 
 COPY --from=builder /app/apps/api/dist apps/api/dist
 COPY --from=builder /app/packages/firebase/dist packages/firebase/dist

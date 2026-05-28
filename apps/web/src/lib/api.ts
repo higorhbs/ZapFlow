@@ -135,7 +135,7 @@ api.interceptors.response.use(
       const isLocal = isLocalDevHost();
       const apiUrl = resolveApiBaseUrl();
       if (isLocal) {
-        err.message = "API offline. Inicie com npm run dev (porta 3001).";
+        err.message = "API offline. Inicie com pnpm dev (porta 3001).";
       } else if (err.code === "ECONNABORTED") {
         err.message = "API demorou para responder (servidor iniciando). Aguarde 30s e tente de novo.";
       } else {

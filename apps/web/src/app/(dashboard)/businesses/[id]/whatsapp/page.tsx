@@ -86,7 +86,7 @@ export default function WhatsAppPage() {
           <div>
             <p className="font-medium">WhatsApp indisponível neste ambiente</p>
             <p className="mt-1 text-amber-800">
-              Rode <strong>npm run dev</strong> e acesse <strong>http://localhost:3000</strong> (API na
+              Rode <strong>pnpm dev</strong> e acesse <strong>http://localhost:3000</strong> (API na
               porta 3001 com <code className="text-xs">ENABLE_WORKERS=true</code>).
             </p>
           </div>

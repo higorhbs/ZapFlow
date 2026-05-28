@@ -47,16 +47,17 @@ zapflow/
 ### Setup
 
 ```bash
-npm install
+pnpm install
 cp .env.example .env
-# Edite .env com Firebase, Redis e Asaas
+cp apps/web/.env.example apps/web/.env
+# Raiz: API, Firebase Admin, Redis, Stripe secret. Web: só NEXT_PUBLIC_*.
 
-npm run dev
+pnpm dev
 ```
 
-Credencial Admin: `GOOGLE_APPLICATION_CREDENTIALS=.secrets/firebase-adminsdk.json` na raiz.
+Credencial Admin: `GOOGLE_APPLICATION_CREDENTIALS=.secrets/firebase-adminsdk.json` na raiz do repo.
 
-**Login Google:** `npm run google:oauth-setup` — no Google Cloud → Credentials → OAuth Client → **Authorized redirect URIs**, inclua obrigatoriamente `https://zapflow-higor-2026.web.app/__/auth/handler` (e as demais URLs que o script listar). `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` deve ser `zapflow-higor-2026.web.app`.
+**Login Google:** `pnpm google:oauth-setup` — no Google Cloud → Credentials → OAuth Client → **Authorized redirect URIs**, inclua obrigatoriamente `https://zapflow-higor-2026.web.app/__/auth/handler` (e as demais URLs que o script listar). `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` deve ser `zapflow-higor-2026.web.app`.
 
 ### Acesse
 
@@ -68,11 +69,11 @@ Credencial Admin: `GOOGLE_APPLICATION_CREDENTIALS=.secrets/firebase-adminsdk.jso
 | App | Onde |
 |-----|------|
 | **Web** | Firebase Hosting — https://zapflow-higor-2026.web.app |
-| **API** | Local (`npm run dev`) ou Docker/VPS/Railway/Render (`apps/api/Dockerfile`) |
+| **API** | Local (`pnpm dev`) ou Docker/VPS/Railway/Render (`apps/api/Dockerfile`) |
 
 ```bash
-npm run deploy:hosting    # front estático
-npm run deploy:firestore  # regras Firestore
+pnpm deploy:hosting    # front estático
+pnpm deploy:firestore  # regras Firestore
 ```
 
 Antes do deploy do front, crie `apps/web/.env.production` (veja `.env.production.example`) com `NEXT_PUBLIC_API_URL` apontando para sua API pública e `NEXT_PUBLIC_FIREBASE_*`.

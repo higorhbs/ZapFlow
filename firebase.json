@@ -2,7 +2,7 @@
   "functions": {
     "source": "apps/api",
     "runtime": "nodejs20",
-    "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
+    "predeploy": ["pnpm --dir \"$RESOURCE_DIR\" run build"]
   },
   "firestore": {
     "rules": "firestore.rules",
