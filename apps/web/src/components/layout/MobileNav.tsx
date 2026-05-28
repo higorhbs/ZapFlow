@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { MessageSquare, Calendar, BookOpen, Bot, Settings } from "lucide-react";
+import { MessageSquare, Calendar, BookOpen, Bot, Settings, Banknote } from "lucide-react";
 import { businessApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
@@ -25,13 +25,14 @@ export function MobileNav() {
     { href: `/businesses/${business.id}/conversations`, icon: MessageSquare, label: "Conversas" },
     { href: `/businesses/${business.id}/appointments`, icon: Calendar, label: "Agenda" },
     { href: `/businesses/${business.id}/catalog`, icon: BookOpen, label: "Catálogo" },
+    { href: `/businesses/${business.id}/payments`, icon: Banknote, label: "Pagto" },
     { href: `/businesses/${business.id}/faqs`, icon: Bot, label: "FAQ" },
     { href: `/businesses/${business.id}/settings`, icon: Settings, label: "Ajustes" },
   ];
 
   return (
     <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur">
-      <nav className="grid grid-cols-5">
+      <nav className="grid grid-cols-6">
         {links.map(({ href, icon: Icon, label }) => {
           const active = pathname.startsWith(href);
           return (

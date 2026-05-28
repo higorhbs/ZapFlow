@@ -18,6 +18,7 @@
       { "source": "/businesses/*/conversations", "destination": "/businesses/app/conversations.html" },
       { "source": "/businesses/*/catalog", "destination": "/businesses/app/catalog.html" },
       { "source": "/businesses/*/appointments", "destination": "/businesses/app/appointments.html" },
+      { "source": "/businesses/*/payments", "destination": "/businesses/app/payments.html" },
       { "source": "/businesses/*/faqs", "destination": "/businesses/app/faqs.html" },
       { "source": "/businesses/*/whatsapp", "destination": "/businesses/app/whatsapp.html" },
       { "source": "/businesses/*/settings", "destination": "/businesses/app/settings.html" }
