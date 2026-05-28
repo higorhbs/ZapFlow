@@ -14,8 +14,17 @@ export function useBusinessVocabulary() {
     queryFn: () => businessApi.get(businessId),
     enabled: ready && !!uid && !!businessId,
   });
-  const vocab = getBusinessVocabulary(business?.type);
-  return Object.assign(vocab, { businessType: business?.type as string | undefined });
+  const { data: businesses } = useQuery({
+    queryKey: ["businesses", uid],
+    queryFn: businessApi.list,
+    enabled: ready && !!uid && !business?.type,
+  });
+  const type =
+    business?.type ??
+    businesses?.find((b) => b.id === businessId)?.type ??
+    businesses?.[0]?.type;
+  const vocab = getBusinessVocabulary(type);
+  return Object.assign(vocab, { businessType: type });
 }
 
 export type BusinessVocabularyWithType = ReturnType<typeof useBusinessVocabulary>;

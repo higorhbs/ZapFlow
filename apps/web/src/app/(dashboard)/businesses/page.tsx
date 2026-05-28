@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { businessApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
 import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/AppLink";
+import { persistBusinessId } from "@/lib/use-business-id";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Wifi, WifiOff, Store, MessageSquare, Calendar,
@@ -33,6 +35,10 @@ export default function BusinessesPage() {
     enabled: ready && !!uid,
   });
   const business = businesses?.[0];
+
+  useEffect(() => {
+    if (business?.id) persistBusinessId(business.id);
+  }, [business?.id]);
 
   if (isLoading) {
     return (

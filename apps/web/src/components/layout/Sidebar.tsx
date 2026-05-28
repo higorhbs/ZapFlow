@@ -2,6 +2,7 @@
 
 import { AppLink as Link } from "@/components/AppLink";
 import { usePathname } from "next/navigation";
+import { useBusinessId } from "@/lib/use-business-id";
 import {
   MessageSquare, LayoutDashboard, Store, Calendar,
   Bot, Settings, LogOut, CreditCard,
@@ -24,8 +25,7 @@ export function Sidebar() {
   const router = useAppRouter();
   const { uid, ready } = useAuth();
 
-  const businessIdMatch = pathname.match(/\/businesses\/([^/]+)/);
-  const businessId = businessIdMatch?.[1];
+  const businessId = useBusinessId({ required: false }) || undefined;
 
   const queryClient = useQueryClient();
 
