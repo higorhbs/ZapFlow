@@ -1,5 +1,11 @@
 import { FastifyInstance, FastifyReply } from "fastify";
-import { getBusiness, setBusinessConnected } from "@zapflow/firebase";
+import {
+  getBusiness,
+  setBusinessConnected,
+  getConversation,
+  upsertConversation,
+  createMessage,
+} from "@zapflow/firebase";
 import { requireAuth } from "../middleware/auth";
 import type { WhatsAppClient } from "@zapflow/whatsapp-client";
 import { isWhatsAppRuntime, waManager } from "../wa-manager.js";
@@ -191,14 +197,35 @@ export async function whatsappRoutes(app: FastifyInstance) {
     if (!isWhatsAppRuntime()) return waUnavailable(reply);
 
     const { id } = req.params as { id: string };
-    const { to, text } = req.body as { to: string; text: string };
+    const { to, text, conversationId } = req.body as {
+      to: string;
+      text: string;
+      conversationId?: string;
+    };
+    if (!to?.trim() || !text?.trim()) {
+      return reply.status(400).send({ error: "Destino e mensagem são obrigatórios" });
+    }
+
     const business = await getBusiness(id, req.tenantId);
     if (!business) return reply.status(404).send({ error: "Negócio não encontrado" });
 
     const client = waManager.get(id);
     if (!client?.isConnected()) return reply.status(400).send({ error: "WhatsApp not connected" });
 
-    const msgId = await client.sendText(to, text);
-    return { messageId: msgId };
+    let convId = conversationId;
+    if (convId) {
+      const conv = await getConversation(id, convId);
+      if (!conv) return reply.status(404).send({ error: "Conversa não encontrada" });
+    } else {
+      convId = (await upsertConversation(id, to.trim())).id;
+    }
+
+    const waMessageId = await client.sendText(to.trim(), text.trim());
+    const message = await createMessage(id, convId, {
+      role: "HUMAN",
+      content: text.trim(),
+    });
+
+    return { messageId: waMessageId, message };
   });
 }

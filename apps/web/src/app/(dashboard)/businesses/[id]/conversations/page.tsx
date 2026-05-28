@@ -63,13 +63,28 @@ export default function ConversationsPage() {
   });
 
   const sendMutation = useMutation({
-    mutationFn: ({ to, text }: { to: string; text: string }) =>
-      whatsappApi.send(businessId, to, text),
-    onSuccess: () => {
+    mutationFn: ({
+      to,
+      text,
+      conversationId,
+    }: {
+      to: string;
+      text: string;
+      conversationId: string;
+    }) => whatsappApi.send(businessId, to, text, conversationId),
+    onSuccess: (data: { message?: Message }) => {
       setReplyText("");
-      queryClient.invalidateQueries({ queryKey: ["conversation-detail", businessId, selected] });
+      if (data?.message && selected) {
+        queryClient.setQueryData(
+          ["conversation-detail", businessId, selected],
+          (old: (Conversation & { messages: Message[] }) | null | undefined) =>
+            old ? { ...old, messages: [...old.messages, data.message!] } : old
+        );
+      }
+      void queryClient.invalidateQueries({ queryKey: ["conversation-detail", businessId, selected] });
+      void queryClient.invalidateQueries({ queryKey: ["conversations", businessId] });
     },
-    onError: () => toast.error("Erro ao enviar mensagem"),
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao enviar mensagem"),
   });
 
   const conversations: Conversation[] = data?.conversations ?? [];
@@ -219,7 +234,11 @@ export default function ConversationsPage() {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
                         if (replyText.trim()) {
-                          sendMutation.mutate({ to: selectedConv.customerPhone, text: replyText.trim() });
+                          sendMutation.mutate({
+                            to: selectedConv.customerPhone,
+                            text: replyText.trim(),
+                            conversationId: selectedConv.id,
+                          });
                         }
                       }
                     }}
@@ -227,7 +246,13 @@ export default function ConversationsPage() {
                   <button
                     className="btn-primary h-10"
                     disabled={!replyText.trim() || sendMutation.isPending}
-                    onClick={() => sendMutation.mutate({ to: selectedConv.customerPhone, text: replyText.trim() })}
+                    onClick={() =>
+                      sendMutation.mutate({
+                        to: selectedConv.customerPhone,
+                        text: replyText.trim(),
+                        conversationId: selectedConv.id,
+                      })
+                    }
                   >
                     {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   </button>

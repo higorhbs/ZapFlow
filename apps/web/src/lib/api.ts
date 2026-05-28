@@ -257,8 +257,10 @@ export const whatsappApi = {
     api.get(`/businesses/${businessId}/whatsapp/status`).then((r) => r.data),
   disconnect: (businessId: string) =>
     api.post(`/businesses/${businessId}/whatsapp/disconnect`).then((r) => r.data),
-  send: (businessId: string, to: string, text: string) =>
-    api.post(`/businesses/${businessId}/whatsapp/send`, { to, text }).then((r) => r.data),
+  send: (businessId: string, to: string, text: string, conversationId?: string) =>
+    api
+      .post(`/businesses/${businessId}/whatsapp/send`, { to, text, conversationId })
+      .then((r) => r.data),
 };
 
 export const appointmentApi = {
