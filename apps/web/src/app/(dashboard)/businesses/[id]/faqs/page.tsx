@@ -624,15 +624,15 @@ function FAQsEditor({ businessId }: { businessId: string }) {
   }
 
   const saveMutation = useMutation({
-    mutationFn: (data: FAQForm) => {
+    mutationFn: async (data: FAQForm) => {
       const payload = {
         question: data.question,
         answer: data.answer,
         keywords: data.keywords.split(",").map((k) => k.trim()).filter(Boolean),
         active: true,
       };
-      if (editingId) return faqApi.update(businessId, editingId, payload);
-      return faqApi.create(businessId, { ...payload, sortOrder: faqs.length });
+      if (editingId) await faqApi.update(businessId, editingId, payload);
+      else await faqApi.create(businessId, { ...payload, sortOrder: faqs.length });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["faqs", businessId] });
