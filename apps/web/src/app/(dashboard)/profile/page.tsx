@@ -17,7 +17,7 @@ import {
 } from "@/lib/firebase-auth";
 import { PLAN_LABELS, cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { CreditCard, Loader2, Mail, Lock, User, Shield, Sparkles, Chrome, FileDown } from "lucide-react";
+import { CreditCard, Loader2, Mail, Lock, User, Shield, Sparkles, Chrome, FileDown, ChevronRight, Trash2, EyeOff } from "lucide-react";
 
 const nameSchema = z.object({
   name: z.string().min(2, "Nome muito curto"),
@@ -116,6 +116,27 @@ export default function ProfilePage() {
       toast.success("Exportação concluída");
     },
     onError: (err: unknown) => toast.error(authErrorMessage(err, "Erro ao exportar dados")),
+  });
+
+  const requestLgpd = useMutation({
+    mutationFn: (payload: { type: "CORRECTION" | "OPPOSITION" | "REVOCATION" | "ERASURE"; details?: string }) =>
+      privacyApi.request(payload.type, payload.details),
+    onSuccess: (_, vars) => {
+      const labels: Record<string, string> = {
+        CORRECTION: "correção",
+        OPPOSITION: "oposição",
+        REVOCATION: "revogação",
+        ERASURE: "exclusão",
+      };
+      toast.success(`Solicitação LGPD de ${labels[vars.type]} registrada.`);
+    },
+    onError: (err: unknown) => toast.error(authErrorMessage(err, "Erro ao registrar solicitação LGPD")),
+  });
+
+  const anonymizeData = useMutation({
+    mutationFn: () => privacyApi.anonymizeMyData(),
+    onSuccess: () => toast.success("Dados anonimizados com sucesso."),
+    onError: (err: unknown) => toast.error(authErrorMessage(err, "Erro ao anonimizar dados")),
   });
 
   if (isLoading || !tenant) {
@@ -279,83 +300,114 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Bottom row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      {/* Bottom: two groups side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-        {/* Plano */}
-        <div className="card flex items-center gap-4">
-          <div className={cn(
-            "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
-            tenant.plan === "UNLIMITED" ? "bg-violet-50" :
-            tenant.plan === "PRO"       ? "bg-brand-50" :
-                                          "bg-gray-100"
-          )}>
-            <CreditCard className={cn(
-              "w-5 h-5",
-              tenant.plan === "UNLIMITED" ? "text-violet-600" :
-              tenant.plan === "PRO"       ? "text-brand-600" :
-                                            "text-gray-500"
-            )} />
+        {/* Conta */}
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Conta</p>
+          <div className="card divide-y divide-gray-100 p-0 overflow-hidden">
+            <Link
+              href="/plan"
+              className="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group"
+            >
+              <div className={cn(
+                "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
+                tenant.plan === "UNLIMITED" ? "bg-violet-50" :
+                tenant.plan === "PRO"       ? "bg-brand-50"  : "bg-gray-100"
+              )}>
+                <CreditCard className={cn(
+                  "w-4 h-4",
+                  tenant.plan === "UNLIMITED" ? "text-violet-600" :
+                  tenant.plan === "PRO"       ? "text-brand-600"  : "text-gray-500"
+                )} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900">Meu plano</p>
+                <p className="text-xs text-gray-500">Plano {PLAN_LABELS[tenant.plan]} · ver detalhes</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors flex-shrink-0" />
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event("zapflow:open-onboarding"))}
+              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group text-left"
+            >
+              <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900">Ver tour do sistema</p>
+                <p className="text-xs text-gray-500">Conheça todos os recursos disponíveis</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors flex-shrink-0" />
+            </button>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className={cn(
-              "font-semibold text-sm",
-              tenant.plan === "UNLIMITED" ? "text-violet-700" :
-              tenant.plan === "PRO"       ? "text-brand-700" :
-                                            "text-gray-700"
-            )}>
-              Plano {PLAN_LABELS[tenant.plan]}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">Gerencie assinatura e pagamento</p>
-          </div>
-          <Link href="/plan" className="btn-secondary flex-shrink-0 text-sm">
-            <CreditCard className="w-4 h-4" />
-            Ver plano
-          </Link>
         </div>
 
-        {/* Tour */}
-        <div className="card flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-5 h-5 text-amber-500" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-gray-900 text-sm">Tour da plataforma</p>
-            <p className="text-xs text-gray-500 mt-0.5">Veja o que o ZapFlow pode fazer</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (!tenant.onboardingCompletedAt) {
-                window.dispatchEvent(new Event("zapflow:open-onboarding"));
-              }
-            }}
-            disabled={Boolean(tenant.onboardingCompletedAt)}
-            className="btn-secondary flex-shrink-0 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <Sparkles className="w-4 h-4" />
-            {tenant.onboardingCompletedAt ? "Tour concluído" : "Ver tour"}
-          </button>
-        </div>
+        {/* Privacidade */}
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Privacidade</p>
+          <div className="card divide-y divide-gray-100 p-0 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => exportData.mutate()}
+              disabled={exportData.isPending}
+              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group text-left disabled:opacity-60"
+            >
+              <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                {exportData.isPending
+                  ? <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                  : <FileDown className="w-4 h-4 text-blue-600" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900">Baixar meus dados</p>
+                <p className="text-xs text-gray-500">Receba uma cópia de todas as suas informações</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors flex-shrink-0" />
+            </button>
 
-        {/* Exportacao LGPD */}
-        <div className="card flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-            <FileDown className="w-5 h-5 text-blue-600" />
+            <button
+              type="button"
+              onClick={() => requestLgpd.mutate({ type: "ERASURE", details: "Solicito exclusão/anonimização dos dados." })}
+              disabled={requestLgpd.isPending}
+              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group text-left disabled:opacity-60"
+            >
+              <div className="w-9 h-9 rounded-lg bg-rose-50 flex items-center justify-center flex-shrink-0">
+                {requestLgpd.isPending
+                  ? <Loader2 className="w-4 h-4 text-rose-500 animate-spin" />
+                  : <Trash2 className="w-4 h-4 text-rose-500" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-rose-600">Solicitar exclusão da conta</p>
+                <p className="text-xs text-gray-500">Envia pedido de remoção permanente dos dados</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-rose-400 transition-colors flex-shrink-0" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm("Esta ação remove suas informações pessoais imediatamente. Deseja continuar?")) {
+                  anonymizeData.mutate();
+                }
+              }}
+              disabled={anonymizeData.isPending}
+              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group text-left disabled:opacity-60"
+            >
+              <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                {anonymizeData.isPending
+                  ? <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />
+                  : <EyeOff className="w-4 h-4 text-gray-500" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-700">Apagar informações pessoais</p>
+                <p className="text-xs text-gray-500">Remove seus dados do sistema imediatamente</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors flex-shrink-0" />
+            </button>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-gray-900 text-sm">Meus dados</p>
-            <p className="text-xs text-gray-500 mt-0.5">Baixe seus dados pessoais (LGPD)</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => exportData.mutate()}
-            disabled={exportData.isPending}
-            className="btn-secondary flex-shrink-0 text-sm"
-          >
-            {exportData.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-            Exportar
-          </button>
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ import {
   createBusiness,
   updateBusiness,
   getBusiness,
+  getTenant,
   listCatalog,
   createCatalogItem,
   updateCatalogItem,
@@ -14,6 +15,7 @@ import {
   createFaq,
   deleteFaq,
 } from "@zapflow/firebase";
+import { PLAN_LIMITS } from "@zapflow/shared";
 import { requireAuth } from "../middleware/auth";
 
 const businessBody = z.object({
@@ -83,7 +85,15 @@ export async function businessRoutes(app: FastifyInstance) {
 
   app.post("/businesses/:id/catalog", async (req, reply) => {
     const { id } = req.params as { id: string };
-    if (!(await getBusiness(id, req.tenantId))) return reply.status(404).send({ error: "Not found" });
+    const business = await getBusiness(id, req.tenantId);
+    if (!business) return reply.status(404).send({ error: "Not found" });
+    const tenant = await getTenant(req.tenantId);
+    const plan = tenant?.plan ?? "STARTER";
+    const limit = PLAN_LIMITS[plan].catalogItems;
+    const currentItems = await listCatalog(id);
+    if (Number.isFinite(limit) && currentItems.length >= limit) {
+      return reply.status(403).send({ error: `Plano ${plan} permite até ${limit} itens no catálogo.` });
+    }
     const body = catalogBody.parse(req.body);
     return reply.status(201).send(await createCatalogItem(id, body));
   });

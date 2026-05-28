@@ -6,6 +6,8 @@
 import type { BusinessWithRelations, Conversation } from "@zapflow/firebase";
 import {
   getBusinessForBot,
+  getTenant,
+  listAppointments,
   upsertConversation,
   createMessage,
   createMessages,
@@ -26,6 +28,7 @@ import {
   buildBotMenuEntries,
   formatBotMenuText,
   type BotMenuAction,
+  PLAN_LIMITS,
 } from "@zapflow/shared";
 import { createPixCharge } from "./pix";
 import { addMinutes, format } from "date-fns";
@@ -247,6 +250,23 @@ async function handleAppointmentTime(
   const [, h, min] = match;
   const baseDate = new Date(state.data.date);
   baseDate.setHours(parseInt(h), parseInt(min), 0, 0);
+
+  const tenant = await getTenant(business.tenantId);
+  const plan = tenant?.plan ?? "STARTER";
+  const monthlyLimit = PLAN_LIMITS[plan].appointmentsPerMonth;
+  if (Number.isFinite(monthlyLimit)) {
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
+    const monthAppointments = await listAppointments(business.id, { from, to });
+    if (monthAppointments.length >= monthlyLimit) {
+      const text =
+        `Limite de agendamentos do plano *${plan}* atingido neste mês (${monthlyLimit}).\n` +
+        `Faça upgrade para continuar recebendo agendamentos automáticos.`;
+      await saveAndReturn(business.id, conversation.id, [{ text }]);
+      return [{ text }];
+    }
+  }
 
   const appointment = await createAppointment({
     businessId: business.id,

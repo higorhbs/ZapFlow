@@ -256,16 +256,14 @@ export function OnboardingTour() {
 
   useEffect(() => {
     function openOnboarding() {
-      if (tenant?.onboardingCompletedAt) return;
       setStep(0);
       setForceOpen(true);
-      // Clear localStorage flag so the tour can be shown again on demand
       if (uid) localStorage.removeItem(lsKey(uid));
       setDismissed(false);
     }
     window.addEventListener("zapflow:open-onboarding", openOnboarding);
     return () => window.removeEventListener("zapflow:open-onboarding", openOnboarding);
-  }, [uid, tenant?.onboardingCompletedAt]);
+  }, [uid]);
 
   if (!visible) return null;
 

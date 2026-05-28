@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { catalogApi } from "@/lib/api";
+import { catalogApi, tenantApi } from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useAuth } from "@/contexts/auth-context";
 import { formatCurrency } from "@/lib/utils";
@@ -11,6 +11,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Loader2, Package } from "lucide-react";
+import { PLAN_LIMITS } from "@zapflow/shared";
 
 type CatalogItem = {
   id: string;
@@ -42,12 +43,23 @@ export default function CatalogPage() {
     queryFn: () => catalogApi.list(businessId),
     enabled: ready && !!uid && !!businessId,
   });
+  const { data: tenant } = useQuery({
+    queryKey: ["tenant", uid],
+    queryFn: () => tenantApi.get(),
+    enabled: ready && !!uid,
+  });
+  const catalogLimit = PLAN_LIMITS[(tenant?.plan ?? "STARTER") as keyof typeof PLAN_LIMITS].catalogItems;
+  const limitReached = Number.isFinite(catalogLimit) && items.length >= catalogLimit;
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
   function openNew() {
+    if (limitReached) {
+      toast.error(`Seu plano permite até ${catalogLimit} itens no catálogo.`);
+      return;
+    }
     setEditing(null);
     reset({ name: "", description: "", available: true });
     setShowForm(true);
@@ -110,11 +122,16 @@ export default function CatalogPage() {
           <h1 className="text-2xl font-bold text-gray-900">Catálogo de Serviços</h1>
           <p className="text-gray-500 mt-1">Itens exibidos quando o cliente pede o catálogo ou orçamento</p>
         </div>
-        <button className="btn-primary" onClick={openNew}>
+        <button className="btn-primary" onClick={openNew} disabled={limitReached}>
           <Plus className="w-4 h-4" />
           Adicionar item
         </button>
       </div>
+      {limitReached && (
+        <div className="mb-4 card bg-amber-50 border-amber-200 text-amber-900 text-sm">
+          Limite do plano atingido: máximo de {catalogLimit} itens no catálogo.
+        </div>
+      )}
 
       {/* Form modal */}
       {showForm && (

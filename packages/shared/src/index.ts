@@ -113,7 +113,7 @@ export function renderTemplate(template: string, vars: Record<string, string>): 
 // ─── Planos ───────────────────────────────────────────────────────────────────
 
 export const PLAN_LIMITS = {
-  STARTER: { phones: 1, messagesPerMonth: 500, catalogItems: 20, appointmentsPerMonth: 50 },
+  STARTER: { phones: 1, messagesPerMonth: 500, catalogItems: 3, appointmentsPerMonth: 30 },
   PRO: { phones: 3, messagesPerMonth: 5000, catalogItems: 100, appointmentsPerMonth: 500 },
   UNLIMITED: {
     phones: 10,

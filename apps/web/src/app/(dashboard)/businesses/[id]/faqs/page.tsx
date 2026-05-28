@@ -81,7 +81,7 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
   const previewLines = buildPreviewLines(items, businessName);
 
   return (
-    <div className="grid lg:grid-cols-[1fr_320px] gap-6">
+    <div className="grid lg:grid-cols-[1fr_320px] gap-6 max-w-3xl mx-auto">
       {/* Editor */}
       <div>
         <p className="text-sm text-gray-500 mb-4">
@@ -516,7 +516,7 @@ export default function BotPage() {
     savedMenu && savedMenu.length > 0 ? savedMenu : DEFAULT_MENU;
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center">

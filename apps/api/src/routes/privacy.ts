@@ -1,6 +1,72 @@
 import { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { getDb, getTenant } from "@zapflow/firebase";
 import { requireAuth } from "../middleware/auth";
+import { runPrivacyRetentionForAllTenants } from "../services/privacy-compliance";
+
+const consentBody = z.object({
+  policyVersion: z.string().min(3),
+});
+
+const requestBody = z.object({
+  type: z.enum(["CORRECTION", "OPPOSITION", "REVOCATION", "ERASURE"]),
+  details: z.string().max(2000).optional(),
+});
+
+function maskPhone(input: string): string {
+  const digits = input.replace(/\D/g, "");
+  return digits ? `anon-${digits.slice(-4)}` : "anon";
+}
+
+async function anonymizeTenantData(tenantId: string) {
+  const db = getDb();
+  const businessesSnap = await db.collection("businesses").where("tenantId", "==", tenantId).get();
+
+  for (const businessDoc of businessesSnap.docs) {
+    const businessId = businessDoc.id;
+    const business = businessDoc.data() as Record<string, unknown>;
+    await businessDoc.ref.update({
+      phone: maskPhone(String(business.phone ?? "")),
+      address: null,
+      description: null,
+      updatedAt: new Date().toISOString(),
+    });
+
+    const conversationsSnap = await businessDoc.ref.collection("conversations").get();
+    for (const convDoc of conversationsSnap.docs) {
+      const conv = convDoc.data() as Record<string, unknown>;
+      await convDoc.ref.update({
+        customerName: "ANONIMIZADO",
+        customerPhone: maskPhone(String(conv.customerPhone ?? "")),
+      });
+      const messagesSnap = await convDoc.ref.collection("messages").get();
+      for (const msgDoc of messagesSnap.docs) {
+        await msgDoc.ref.update({
+          content: "[ANONIMIZADO]",
+        });
+      }
+    }
+
+    const appointmentsSnap = await businessDoc.ref.collection("appointments").get();
+    for (const aptDoc of appointmentsSnap.docs) {
+      const apt = aptDoc.data() as Record<string, unknown>;
+      await aptDoc.ref.update({
+        customerName: "ANONIMIZADO",
+        customerPhone: maskPhone(String(apt.customerPhone ?? "")),
+        notes: null,
+      });
+    }
+
+    const paymentsSnap = await businessDoc.ref.collection("payments").get();
+    for (const payDoc of paymentsSnap.docs) {
+      const pay = payDoc.data() as Record<string, unknown>;
+      await payDoc.ref.update({
+        customerName: "ANONIMIZADO",
+        customerPhone: maskPhone(String(pay.customerPhone ?? "")),
+      });
+    }
+  }
+}
 
 export async function privacyRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
@@ -62,6 +128,69 @@ export async function privacyRoutes(app: FastifyInstance) {
       tenant,
       businesses,
     };
+  });
+
+  app.post("/privacy/consent", async (req, reply) => {
+    const { policyVersion } = consentBody.parse(req.body ?? {});
+    const tenantId = req.tenantId;
+    const db = getDb();
+    const now = new Date().toISOString();
+
+    await db.collection("tenants").doc(tenantId).update({
+      lgpdAcceptedAt: now,
+      lgpdPolicyVersion: policyVersion,
+      updatedAt: now,
+    });
+
+    await db.collection("tenants").doc(tenantId).collection("privacy_audit").doc().set({
+      type: "CONSENT_ACCEPTED",
+      policyVersion,
+      acceptedAt: now,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"] ?? "",
+    });
+
+    return { ok: true, acceptedAt: now, policyVersion };
+  });
+
+  app.post("/privacy/requests", async (req) => {
+    const tenantId = req.tenantId;
+    const body = requestBody.parse(req.body ?? {});
+    const db = getDb();
+    const now = new Date().toISOString();
+    const ref = db.collection("tenants").doc(tenantId).collection("privacy_requests").doc();
+    await ref.set({
+      ...body,
+      status: "OPEN",
+      createdAt: now,
+      updatedAt: now,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"] ?? "",
+    });
+    return { ok: true, requestId: ref.id };
+  });
+
+  app.post("/privacy/anonymize", async (req) => {
+    const tenantId = req.tenantId;
+    const db = getDb();
+    await anonymizeTenantData(tenantId);
+    await db.collection("tenants").doc(tenantId).update({
+      name: "ANONIMIZADO",
+      email: `anon-${tenantId}@anonymized.local`,
+      updatedAt: new Date().toISOString(),
+    });
+    await db.collection("tenants").doc(tenantId).collection("privacy_audit").doc().set({
+      type: "ANONYMIZATION_EXECUTED",
+      executedAt: new Date().toISOString(),
+      ip: req.ip,
+      userAgent: req.headers["user-agent"] ?? "",
+    });
+    return { ok: true };
+  });
+
+  app.post("/privacy/retention/run", async () => {
+    const summary = await runPrivacyRetentionForAllTenants(365);
+    return { ok: true, ...summary };
   });
 }
 

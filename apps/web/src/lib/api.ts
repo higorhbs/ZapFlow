@@ -22,7 +22,6 @@ import {
   getClientTenant,
   updateClientPlan,
   completeClientOnboarding,
-  acceptClientLgpd,
 } from "@zapflow/firebase/client";
 import type { Plan } from "@zapflow/firebase/client";
 
@@ -80,7 +79,8 @@ export const tenantApi = {
   get: () => getClientTenant(requireUid()),
   updatePlan: (plan: Plan) => updateClientPlan(requireUid(), plan),
   completeOnboarding: () => completeClientOnboarding(requireUid()),
-  acceptLgpd: (policyVersion: string) => acceptClientLgpd(requireUid(), policyVersion),
+  acceptLgpd: (policyVersion: string) =>
+    api.post("/privacy/consent", { policyVersion }).then((r) => r.data),
 };
 
 export const profileApi = {
@@ -183,6 +183,8 @@ export const analyticsApi = {
 };
 
 export const privacyApi = {
-  exportMyData: () =>
-    api.get("/privacy/export").then((r) => r.data),
+  exportMyData: () => api.get("/privacy/export").then((r) => r.data),
+  request: (type: "CORRECTION" | "OPPOSITION" | "REVOCATION" | "ERASURE", details?: string) =>
+    api.post("/privacy/requests", { type, details }).then((r) => r.data),
+  anonymizeMyData: () => api.post("/privacy/anonymize").then((r) => r.data),
 };
