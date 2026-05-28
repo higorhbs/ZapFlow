@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { VocabLabel } from "@/components/layout/VocabLabel";
 
 type CatalogItem = {
   id: string;
@@ -149,8 +150,16 @@ export default function CatalogPage() {
               <ShoppingBag className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">{v.catalogPageTitle}</h1>
-              <p className="text-white/70 text-sm mt-0.5">{v.catalogPageSubtitle}</p>
+              <h1 className="text-2xl font-bold text-white">
+                <VocabLabel ready={v.vocabReady} variant="light" width="9rem" block>
+                  {v.catalogPageTitle}
+                </VocabLabel>
+              </h1>
+              <p className="text-white/70 text-sm mt-0.5">
+                <VocabLabel ready={v.vocabReady} variant="light" width="14rem" block>
+                  {v.catalogPageSubtitle}
+                </VocabLabel>
+              </p>
             </div>
           </div>
           <button

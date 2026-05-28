@@ -18,6 +18,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <body className={inter.className} suppressHydrationWarning>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=sessionStorage.getItem("zapflow:activeBusinessType");if(t)document.documentElement.setAttribute("data-business-type",t);}catch(e){}})();`,
+          }}
+        />
         <Providers>
           {children}
           <ToasterHost />

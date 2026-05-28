@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { businessApi, whatsappApi, conversationApi } from "@/lib/api";
 import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
+import { VocabLabel } from "@/components/layout/VocabLabel";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 
@@ -60,13 +61,13 @@ export function Sidebar() {
 
   const businessLinks = businessId
     ? [
-        { href: `/businesses/${businessId}/conversations`, icon: MessageSquare, label: "Conversas" },
-        { href: `/businesses/${businessId}/appointments`, icon: Calendar, label: v.bookingsNav },
-        { href: `/businesses/${businessId}/catalog`, icon: BookOpen, label: v.catalogNav },
-        { href: `/businesses/${businessId}/payments`, icon: Banknote, label: "Pagamentos" },
-        { href: `/businesses/${businessId}/faqs`, icon: Bot, label: "Bot" },
-        { href: `/businesses/${businessId}/whatsapp`, icon: MessageSquare, label: "WhatsApp" },
-        { href: `/businesses/${businessId}/settings`, icon: Settings, label: "Configurações" },
+        { href: `/businesses/${businessId}/conversations`, icon: MessageSquare, label: "Conversas", vocab: false },
+        { href: `/businesses/${businessId}/appointments`, icon: Calendar, label: v.bookingsNav, vocab: true },
+        { href: `/businesses/${businessId}/catalog`, icon: BookOpen, label: v.catalogNav, vocab: true },
+        { href: `/businesses/${businessId}/payments`, icon: Banknote, label: "Pagamentos", vocab: false },
+        { href: `/businesses/${businessId}/faqs`, icon: Bot, label: "Bot", vocab: false },
+        { href: `/businesses/${businessId}/whatsapp`, icon: MessageSquare, label: "WhatsApp", vocab: false },
+        { href: `/businesses/${businessId}/settings`, icon: Settings, label: "Configurações", vocab: false },
       ]
     : [];
 
@@ -161,7 +162,7 @@ export function Sidebar() {
               Painel do negócio
             </p>
             <div className="space-y-0.5 mb-4">
-              {businessLinks.map(({ href, icon: Icon, label }) => {
+              {businessLinks.map(({ href, icon: Icon, label, vocab }) => {
                 const isConversations = label === "Conversas";
                 return (
                   <Link
@@ -175,7 +176,13 @@ export function Sidebar() {
                     )}
                   >
                     <Icon className="w-4 h-4" />
-                    <span className="flex-1">{label}</span>
+                    <span className="flex-1" suppressHydrationWarning>
+                      {vocab ? (
+                        <VocabLabel ready={v.vocabReady}>{label}</VocabLabel>
+                      ) : (
+                        label
+                      )}
+                    </span>
                     {isConversations && unreadCount > 0 && (
                       <span
                         className={cn(

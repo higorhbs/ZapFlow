@@ -12,6 +12,7 @@ import { useBusinessId } from "@/lib/use-business-id";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { getBookingStatusLabel } from "@zapflow/shared";
 import { toast } from "sonner";
+import { VocabLabel } from "@/components/layout/VocabLabel";
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: "bg-orange-100 border-orange-300 text-orange-900",
@@ -81,8 +82,18 @@ export default function AppointmentsPage() {
     <div className="p-4 md:p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{v.bookingsPageTitle}</h1>
-          <p className="text-gray-500 mt-1">Gerencie os {v.bookingsPlural.toLowerCase()} feitos pelo WhatsApp</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            <VocabLabel ready={v.vocabReady} width="8rem" block>
+              {v.bookingsPageTitle}
+            </VocabLabel>
+          </h1>
+          <p className="text-gray-500 mt-1">
+            {v.vocabReady ? (
+              <>Gerencie os {v.bookingsPlural.toLowerCase()} feitos pelo WhatsApp</>
+            ) : (
+              <VocabLabel ready={false} width="18rem" block />
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <Button type="button" variant="outline" size="icon" onClick={() => setWeekOffset((w) => w - 1)}>

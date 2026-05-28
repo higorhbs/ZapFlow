@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
 import { WorkingHoursEditor, defaultWorkingHours, type WorkingHoursValue } from "@/components/business/WorkingHoursEditor";
 import { useBusinessId } from "@/lib/use-business-id";
+import { persistBusinessSnapshot } from "@/lib/business-route";
 
 const schema = z.object({
   name: z.string().min(2),
@@ -47,6 +48,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!business) return;
+    if (business.id && business.type) persistBusinessSnapshot({ id: business.id, type: business.type });
     reset(business);
     const wh = business.workingHours as WorkingHoursValue;
     setWorkingHours(wh && Object.keys(wh).length > 0 ? wh : defaultWorkingHours());
@@ -55,9 +57,11 @@ export default function SettingsPage() {
 
   const saveMutation = useMutation({
     mutationFn: (data: FormData) => businessApi.update(businessId, { ...data, workingHours }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       setHoursDirty(false);
+      persistBusinessSnapshot({ id: businessId, type: variables.type });
       queryClient.invalidateQueries({ queryKey: ["business", businessId] });
+      queryClient.invalidateQueries({ queryKey: ["businesses"] });
       toast.success("Configurações salvas!");
     },
     onError: () => toast.error("Erro ao salvar"),

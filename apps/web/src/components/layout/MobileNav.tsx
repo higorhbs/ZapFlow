@@ -8,6 +8,7 @@ import { businessApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
+import { VocabLabel } from "@/components/layout/VocabLabel";
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -26,18 +27,18 @@ export function MobileNav() {
   const navId = v.businessId || business.id;
 
   const links = [
-    { href: `/businesses/${navId}/conversations`, icon: MessageSquare, label: "Conversas" },
-    { href: `/businesses/${navId}/appointments`, icon: Calendar, label: v.bookingsNavShort },
-    { href: `/businesses/${navId}/catalog`, icon: BookOpen, label: v.catalogNavShort },
-    { href: `/businesses/${navId}/payments`, icon: Banknote, label: "Pagto" },
-    { href: `/businesses/${navId}/faqs`, icon: Bot, label: "FAQ" },
-    { href: `/businesses/${navId}/settings`, icon: Settings, label: "Ajustes" },
+    { href: `/businesses/${navId}/conversations`, icon: MessageSquare, label: "Conversas", vocab: false },
+    { href: `/businesses/${navId}/appointments`, icon: Calendar, label: v.bookingsNavShort, vocab: true },
+    { href: `/businesses/${navId}/catalog`, icon: BookOpen, label: v.catalogNavShort, vocab: true },
+    { href: `/businesses/${navId}/payments`, icon: Banknote, label: "Pagto", vocab: false },
+    { href: `/businesses/${navId}/faqs`, icon: Bot, label: "FAQ", vocab: false },
+    { href: `/businesses/${navId}/settings`, icon: Settings, label: "Ajustes", vocab: false },
   ];
 
   return (
     <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur">
       <nav className="grid grid-cols-6">
-        {links.map(({ href, icon: Icon, label }) => {
+        {links.map(({ href, icon: Icon, label, vocab }) => {
           const active = pathname.startsWith(href);
           return (
             <Link
@@ -49,7 +50,15 @@ export function MobileNav() {
               )}
             >
               <Icon className={cn("w-4 h-4", active && "text-brand-600")} />
-              <span>{label}</span>
+              <span suppressHydrationWarning>
+                {vocab ? (
+                  <VocabLabel ready={v.vocabReady} width="3.25rem" className="mx-auto">
+                    {label}
+                  </VocabLabel>
+                ) : (
+                  label
+                )}
+              </span>
             </Link>
           );
         })}
