@@ -12,6 +12,7 @@ import { panelHref } from "@/lib/business-nav";
 
 export function MobileNav() {
   const { uid, ready } = useAuth();
+  const v = useBusinessVocabulary({ requiredId: false });
 
   const { data: businesses } = useQuery({
     queryKey: ["businesses", uid],
@@ -20,10 +21,8 @@ export function MobileNav() {
   });
 
   const business = businesses?.[0];
-  if (!business) return null;
-
-  const v = useBusinessVocabulary({ requiredId: false });
-  const navId = v.businessId || business.id;
+  const navId = v.businessId || business?.id;
+  if (!navId) return null;
 
   const links = [
     { href: panelHref(navId, "conversations"), icon: MessageSquare, label: "Conversas", vocab: false },
