@@ -7,7 +7,7 @@ COPY packages/firebase/package*.json packages/firebase/
 COPY packages/shared/package*.json packages/shared/
 COPY packages/whatsapp-client/package*.json packages/whatsapp-client/
 
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY apps/api apps/api
 COPY packages/firebase packages/firebase
