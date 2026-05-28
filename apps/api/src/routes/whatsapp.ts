@@ -11,46 +11,49 @@ type ConnectResult = {
   message?: string;
 };
 
+const lifecycleAttached = new WeakSet<WhatsAppClient>();
+
 function waUnavailable(reply: FastifyReply) {
   return reply.status(503).send({
     status: "error",
     message:
-      "WhatsApp exige API com processo contínuo (npm run dev na porta 3001 ou servidor com ENABLE_WORKERS=true).",
+      "WhatsApp exige API com processo contínuo (servidor com ENABLE_WORKERS=true).",
   });
 }
 
-function waitForQrOrConnected(client: WhatsAppClient, businessId: string): Promise<ConnectResult> {
+function waitForQr(client: WhatsAppClient, timeoutMs = 60_000): Promise<ConnectResult> {
+  if (client.isConnected()) {
+    return Promise.resolve({ status: "already_connected" });
+  }
+  if (client.lastQrDataUrl) {
+    return Promise.resolve({ status: "qr", qr: client.lastQrDataUrl });
+  }
+
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      cleanup();
-      resolve({ status: "timeout", message: "QR expirou. Clique em Gerar QR Code novamente." });
-    }, 90_000);
+      client.off("qr", onQr);
+      if (client.lastQrDataUrl) {
+        resolve({ status: "qr", qr: client.lastQrDataUrl });
+        return;
+      }
+      resolve({
+        status: "pending",
+        message: "Aguardando QR. Mantenha esta tela aberta e tente gerar novamente.",
+      });
+    }, timeoutMs);
 
     const onQr = (qrDataUrl: string) => {
-      cleanup();
+      clearTimeout(timer);
+      client.off("qr", onQr);
       resolve({ status: "qr", qr: qrDataUrl });
     };
 
-    const onConnected = async () => {
-      cleanup();
-      await setBusinessConnected(businessId, true);
-      resolve({ status: "connected" });
-    };
-
-    const onError = (err: Error) => {
-      cleanup();
-      reject(err);
-    };
-
-    function cleanup() {
+    client.once("qr", onQr);
+    void client.connect().catch((err) => {
       clearTimeout(timer);
       client.off("qr", onQr);
-      client.off("connected", onConnected);
-    }
-
-    client.once("qr", onQr);
-    client.once("connected", onConnected);
-    client.connect().catch(onError);
+      reject(err);
+    });
   });
 }
 
@@ -58,6 +61,27 @@ export async function whatsappRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
 
   const sessionsRoot = process.env.WA_SESSION_PATH ?? "./sessions";
+
+  function attachLifecycle(id: string, client: WhatsAppClient) {
+    if (lifecycleAttached.has(client)) return;
+    lifecycleAttached.add(client);
+
+    client.on("connected", async () => {
+      try {
+        await setBusinessConnected(id, true);
+      } catch (err) {
+        console.error(`[whatsapp] failed to mark connected for ${id}:`, err);
+      }
+    });
+
+    client.on("disconnected", async () => {
+      try {
+        await setBusinessConnected(id, false);
+      } catch (err) {
+        console.error(`[whatsapp] failed to mark disconnected for ${id}:`, err);
+      }
+    });
+  }
 
   function attachMessageHandler(id: string, client: WhatsAppClient) {
     if (client.listenerCount("message") > 0) return;
@@ -89,11 +113,12 @@ export async function whatsappRoutes(app: FastifyInstance) {
     if (!isWhatsAppRuntime()) return waUnavailable(reply);
 
     const { id } = req.params as { id: string };
+    const force = (req.query as { force?: string }).force === "1";
     const business = await getBusiness(id, req.tenantId);
     if (!business) return reply.status(404).send({ error: "Negócio não encontrado" });
 
     const prev = waManager.get(id);
-    if (prev) {
+    if (prev && force) {
       try {
         await prev.logout();
       } catch {
@@ -103,6 +128,7 @@ export async function whatsappRoutes(app: FastifyInstance) {
     }
 
     const client = waManager.getOrCreate(id, sessionsRoot);
+    attachLifecycle(id, client);
     attachMessageHandler(id, client);
 
     if (client.isConnected()) {
@@ -111,7 +137,10 @@ export async function whatsappRoutes(app: FastifyInstance) {
     }
 
     try {
-      const result = await waitForQrOrConnected(client, id);
+      void client.connect().catch((err) => {
+        req.log.error({ err }, "whatsapp background connect failed");
+      });
+      const result = await waitForQr(client);
       return reply.send(result);
     } catch (err) {
       req.log.error({ err }, "whatsapp connect failed");
@@ -139,6 +168,7 @@ export async function whatsappRoutes(app: FastifyInstance) {
     return {
       connected,
       status: client?.status ?? "disconnected",
+      qr: !connected && client?.lastQrDataUrl ? client.lastQrDataUrl : undefined,
     };
   });
 

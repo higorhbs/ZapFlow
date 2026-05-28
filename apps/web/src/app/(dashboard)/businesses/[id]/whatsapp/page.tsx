@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState, useRef } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { whatsappApi } from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
-import { markWhatsAppConnected } from "@/lib/use-sync-wa-business";
+import { markWhatsAppConnected, useSyncWhatsAppBusiness } from "@/lib/use-sync-wa-business";
 import { toast } from "sonner";
 import { Smartphone, Wifi, WifiOff, QrCode, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
 import Image from "next/image";
@@ -20,24 +20,35 @@ export default function WhatsAppPage() {
   const queryClient = useQueryClient();
   const [qrCode, setQrCode] = useState<string | null>(null);
   const lastSyncedConnected = useRef<boolean | null>(null);
+  const wasConnected = useRef(false);
 
-  const { data: status, isLoading } = useQuery({
-    queryKey: ["wa-status", id],
-    queryFn: () => whatsappApi.status(id),
-  });
+  const { data: status, isLoading } = useSyncWhatsAppBusiness(id);
+
+  useEffect(() => {
+    if (status?.connected && !wasConnected.current) {
+      wasConnected.current = true;
+      setQrCode(null);
+      toast.success("WhatsApp conectado!");
+    }
+    if (!status?.connected) {
+      wasConnected.current = false;
+      if (status?.qr) setQrCode(status.qr);
+    }
+  }, [status?.connected, status?.qr]);
 
   const waUnavailable = status?.status === "unavailable";
 
   const connectMutation = useMutation({
-    mutationFn: () => whatsappApi.connect(id) as Promise<ConnectResponse>,
+    mutationFn: (force?: boolean) => whatsappApi.connect(id, force) as Promise<ConnectResponse>,
     onSuccess: (data) => {
       if (data.status === "qr" && data.qr) {
         setQrCode(data.qr);
         toast.info("QR Code gerado! Escaneie com seu WhatsApp.");
       } else if (data.status === "already_connected" || data.status === "connected") {
         setQrCode(null);
-        toast.success("WhatsApp conectado!");
-        void markWhatsAppConnected(queryClient, id, true, lastSyncedConnected);
+        void queryClient.invalidateQueries({ queryKey: ["wa-status", id] });
+      } else if (data.status === "pending") {
+        toast.info(data.message ?? "Escaneie o QR e aguarde a confirmação.");
       } else if (data.status === "timeout") {
         toast.error(data.message ?? "QR expirou. Gere outro código.");
       } else if (data.status === "error") {
@@ -111,6 +122,7 @@ export default function WhatsAppPage() {
               <p>2. Toque em <strong>Dispositivos conectados</strong></p>
               <p>3. Toque em <strong>Conectar dispositivo</strong></p>
               <p>4. Aponte a câmera para o QR Code</p>
+              <p className="text-brand-600 pt-2">Após escanear, aguarde alguns segundos nesta tela.</p>
             </div>
           </div>
         )}
@@ -127,7 +139,7 @@ export default function WhatsAppPage() {
         ) : (
           <button
             className="btn-primary"
-            onClick={() => connectMutation.mutate()}
+            onClick={() => connectMutation.mutate(!!qrCode)}
             disabled={connectMutation.isPending || waUnavailable}
           >
             {connectMutation.isPending ? (

@@ -199,8 +199,12 @@ export const conversationApi = {
 };
 
 export const whatsappApi = {
-  connect: (businessId: string) =>
-    api.post(`/businesses/${businessId}/whatsapp/connect`).then((r) => r.data),
+  connect: (businessId: string, force = false) =>
+    api
+      .post(`/businesses/${businessId}/whatsapp/connect${force ? "?force=1" : ""}`, undefined, {
+        timeout: 70_000,
+      })
+      .then((r) => r.data),
   status: (businessId: string) =>
     api.get(`/businesses/${businessId}/whatsapp/status`).then((r) => r.data),
   disconnect: (businessId: string) =>

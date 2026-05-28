@@ -29,6 +29,8 @@ export class WhatsAppClient extends EventEmitter {
   private sessionPath: string;
   private logger = pino({ level: "silent" });
   public status: ConnectionStatus = "connecting";
+  public lastQrDataUrl?: string;
+  private connecting = false;
 
   constructor(private businessId: string, sessionsRoot: string) {
     super();
@@ -38,6 +40,9 @@ export class WhatsAppClient extends EventEmitter {
 
   async connect() {
     if (this.status === "open") return;
+    if (this.connecting) return;
+    this.connecting = true;
+    try {
     if (this.sock) {
       try {
         this.sock.end(undefined);
@@ -76,19 +81,28 @@ export class WhatsAppClient extends EventEmitter {
       if (qr) {
         this.status = "qr";
         const qrDataUrl = await toDataURL(qr);
+        this.lastQrDataUrl = qrDataUrl;
         this.emit("qr", qrDataUrl);
       }
 
       if (connection === "open") {
         this.status = "open";
+        this.lastQrDataUrl = undefined;
+        this.connecting = false;
         this.emit("connected");
       }
 
       if (connection === "close") {
         this.status = "close";
+        this.connecting = false;
         const code = (lastDisconnect?.error as Boom)?.output?.statusCode;
         const shouldReconnect = code !== DisconnectReason.loggedOut;
         this.emit("disconnected", { code, shouldReconnect });
+        if (shouldReconnect) {
+          setTimeout(() => {
+            void this.connect().catch(() => undefined);
+          }, 2500);
+        }
       }
     });
 
@@ -124,6 +138,10 @@ export class WhatsAppClient extends EventEmitter {
         this.emit("message", parsed);
       }
     });
+    } catch (err) {
+      this.connecting = false;
+      throw err;
+    }
   }
 
   async sendText(to: string, text: string): Promise<string | undefined> {
