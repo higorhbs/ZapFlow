@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { conversationApi, whatsappApi } from "@/lib/api";
+import { useBusinessId } from "@/lib/use-business-id";
 import { formatPhone, STATUS_LABELS, cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -25,8 +26,8 @@ type Message = {
   createdAt: string;
 };
 
-export default function ConversationsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: businessId } = use(params);
+export default function ConversationsPage() {
+  const businessId = useBusinessId();
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [replyText, setReplyText] = useState("");

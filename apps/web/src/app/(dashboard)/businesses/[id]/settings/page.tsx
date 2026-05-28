@@ -7,8 +7,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2, Save } from "lucide-react";
-import { useEffect, use } from "react";
+import { useEffect } from "react";
 import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
+import { useBusinessId } from "@/lib/use-business-id";
 
 const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const DAY_PT: Record<string, string> = {
@@ -28,8 +29,8 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-export default function SettingsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: businessId } = use(params);
+export default function SettingsPage() {
+  const businessId = useBusinessId();
   const queryClient = useQueryClient();
 
   const { data: business, isLoading } = useQuery({

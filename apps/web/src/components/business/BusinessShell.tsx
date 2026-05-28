@@ -1,11 +1,10 @@
 "use client";
 
-import { useParams } from "next/navigation";
 import { BusinessHeader } from "./BusinessHeader";
+import { useBusinessId } from "@/lib/use-business-id";
 
 export function BusinessShell({ children }: { children: React.ReactNode }) {
-  const params = useParams();
-  const id = typeof params.id === "string" ? params.id : "";
+  const id = useBusinessId();
 
   return (
     <div className="flex flex-col min-h-full">

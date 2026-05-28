@@ -5,8 +5,9 @@ import { appointmentApi } from "@/lib/api";
 import { STATUS_LABELS, cn } from "@/lib/utils";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useState, use } from "react";
+import { useState } from "react";
 import { ChevronLeft, ChevronRight, Calendar, Loader2 } from "lucide-react";
+import { useBusinessId } from "@/lib/use-business-id";
 import { toast } from "sonner";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -17,8 +18,8 @@ const STATUS_COLORS: Record<string, string> = {
   NO_SHOW: "bg-red-50 border-red-100 text-red-600",
 };
 
-export default function AppointmentsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: businessId } = use(params);
+export default function AppointmentsPage() {
+  const businessId = useBusinessId();
   const queryClient = useQueryClient();
   const [weekOffset, setWeekOffset] = useState(0);
 

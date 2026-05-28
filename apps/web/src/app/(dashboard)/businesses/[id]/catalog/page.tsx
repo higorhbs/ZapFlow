@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { catalogApi } from "@/lib/api";
+import { useBusinessId } from "@/lib/use-business-id";
+import { useAuth } from "@/contexts/auth-context";
 import { formatCurrency } from "@/lib/utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,15 +30,17 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-export default function CatalogPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: businessId } = use(params);
+export default function CatalogPage() {
+  const businessId = useBusinessId();
+  const { ready, uid } = useAuth();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<CatalogItem | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  const { data: items = [], isLoading } = useQuery({
-    queryKey: ["catalog", businessId],
+  const { data: items = [], isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["catalog", businessId, uid],
     queryFn: () => catalogApi.list(businessId),
+    enabled: ready && !!uid && !!businessId,
   });
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -45,7 +49,7 @@ export default function CatalogPage({ params }: { params: Promise<{ id: string }
 
   function openNew() {
     setEditing(null);
-    reset({ name: "", description: "", price: 0, available: true });
+    reset({ name: "", description: "", available: true });
     setShowForm(true);
   }
 
@@ -56,17 +60,39 @@ export default function CatalogPage({ params }: { params: Promise<{ id: string }
   }
 
   const saveMutation = useMutation({
-    mutationFn: (data: FormData) =>
-      editing
-        ? catalogApi.update(businessId, editing.id, data)
-        : catalogApi.create(businessId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["catalog", businessId] });
+    mutationFn: async (payload: { data: FormData; mode: "create" | "update"; itemId?: string }) => {
+      const { data, mode, itemId } = payload;
+      if (mode === "update" && itemId) {
+        const updated = await catalogApi.update(businessId, itemId, data);
+        if (!updated) throw new Error("Item não encontrado.");
+        return { saved: updated, mode };
+      }
+      const created = await catalogApi.create(businessId, data);
+      return { saved: created, mode: "create" as const };
+    },
+    onSuccess: ({ saved, mode }) => {
+      queryClient.setQueryData<CatalogItem[]>(["catalog", businessId, uid], (old) => {
+        const list = old ?? [];
+        if (mode === "update") {
+          return list.map((i) => (i.id === saved.id ? { ...i, ...saved } : i));
+        }
+        if (list.some((i) => i.id === saved.id)) return list;
+        return [...list, saved];
+      });
       setShowForm(false);
       setEditing(null);
-      toast.success(editing ? "Item atualizado!" : "Item adicionado!");
+      toast.success(mode === "update" ? "Item atualizado!" : "Item adicionado!");
     },
-    onError: () => toast.error("Erro ao salvar item"),
+    onError: (err: unknown) => {
+      const code =
+        err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
+      if (code === "permission-denied") {
+        toast.error("Sem permissão para salvar neste negócio.");
+        return;
+      }
+      const msg = err instanceof Error ? err.message : "Erro ao salvar item";
+      toast.error(msg.includes("undefined") ? "Dados inválidos. Confira nome e preço." : msg);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -97,7 +123,16 @@ export default function CatalogPage({ params }: { params: Promise<{ id: string }
             <h2 className="text-lg font-semibold text-gray-900 mb-6">
               {editing ? "Editar item" : "Novo item"}
             </h2>
-            <form onSubmit={handleSubmit((d) => saveMutation.mutate(d))} className="space-y-4">
+            <form
+              onSubmit={handleSubmit((d) =>
+                saveMutation.mutate({
+                  data: d,
+                  mode: editing ? "update" : "create",
+                  itemId: editing?.id,
+                })
+              )}
+              className="space-y-4"
+            >
               <div>
                 <label className="label">Nome *</label>
                 <input type="text" className="input" placeholder="Corte masculino" {...register("name")} />
@@ -125,6 +160,15 @@ export default function CatalogPage({ params }: { params: Promise<{ id: string }
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {isError && (
+        <div className="mb-6 card bg-red-50 border-red-200 text-sm text-red-800">
+          <p>{(error as Error)?.message ?? "Erro ao carregar catálogo"}</p>
+          <button type="button" className="btn-secondary mt-3 text-xs" onClick={() => refetch()}>
+            Tentar de novo
+          </button>
         </div>
       )}
 

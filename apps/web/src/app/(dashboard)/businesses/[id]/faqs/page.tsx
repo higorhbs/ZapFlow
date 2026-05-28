@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { faqApi } from "@/lib/api";
+import { useBusinessId } from "@/lib/use-business-id";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,8 +25,8 @@ const SUGGESTIONS = [
   { question: "Vocês aceitam cartão?", answer: "Sim! Aceitamos cartão de crédito, débito e PIX.", keywords: "cartão,pagamento,cartao,forma de pagamento,pix" },
 ];
 
-export default function FAQPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: businessId } = use(params);
+export default function FAQPage() {
+  const businessId = useBusinessId();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
 

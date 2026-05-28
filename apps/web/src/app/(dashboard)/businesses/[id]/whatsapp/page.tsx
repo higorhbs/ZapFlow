@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { whatsappApi } from "@/lib/api";
+import { useBusinessId } from "@/lib/use-business-id";
 import { toast } from "sonner";
 import { Smartphone, Wifi, WifiOff, QrCode, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
 import Image from "next/image";
@@ -13,8 +14,8 @@ type ConnectResponse = {
   message?: string;
 };
 
-export default function WhatsAppPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function WhatsAppPage() {
+  const id = useBusinessId();
   const queryClient = useQueryClient();
   const [qrCode, setQrCode] = useState<string | null>(null);
 

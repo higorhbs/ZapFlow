@@ -94,13 +94,30 @@ export const businessApi = {
     updateClientBusiness(id, requireUid(), data),
 };
 
+async function assertBusinessAccess(businessId: string) {
+  const tenantId = requireUid();
+  const biz = await getClientBusiness(businessId, tenantId);
+  if (!biz) throw new Error("Negócio não encontrado ou sem acesso.");
+  return biz;
+}
+
 export const catalogApi = {
-  list: (businessId: string) => listClientCatalog(businessId),
-  create: (businessId: string, data: Record<string, unknown>) =>
-    createClientCatalogItem(businessId, data as Parameters<typeof createClientCatalogItem>[1]),
-  update: (businessId: string, itemId: string, data: Record<string, unknown>) =>
-    updateClientCatalogItem(businessId, itemId, data),
-  remove: (businessId: string, itemId: string) => deleteClientCatalogItem(businessId, itemId),
+  list: async (businessId: string) => {
+    requireUid();
+    return listClientCatalog(businessId);
+  },
+  create: async (businessId: string, data: Record<string, unknown>) => {
+    await assertBusinessAccess(businessId);
+    return createClientCatalogItem(businessId, data as Parameters<typeof createClientCatalogItem>[1]);
+  },
+  update: async (businessId: string, itemId: string, data: Record<string, unknown>) => {
+    await assertBusinessAccess(businessId);
+    return updateClientCatalogItem(businessId, itemId, data);
+  },
+  remove: async (businessId: string, itemId: string) => {
+    await assertBusinessAccess(businessId);
+    return deleteClientCatalogItem(businessId, itemId);
+  },
 };
 
 export const faqApi = {
