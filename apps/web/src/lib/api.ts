@@ -27,7 +27,8 @@ import {
 } from "@zapflow/firebase/client";
 import type { Plan } from "@zapflow/firebase/client";
 
-const PRODUCTION_API_URL = "https://zapflow-41z0.onrender.com";
+const PRODUCTION_API_URL =
+  process.env.NEXT_PUBLIC_API_URL?.trim() || "https://zapflow-41z0.onrender.com";
 
 function isLocalDevHost() {
   if (typeof window === "undefined") return false;

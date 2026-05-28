@@ -12,7 +12,8 @@
     "prepare:hosting": "node scripts/prepare-hosting.mjs",
     "build:hosting": "npm run prepare:hosting && FIREBASE_STATIC=1 npm run build --workspace=@zapflow/web",
     "deploy:hosting": "npm run build:hosting && firebase deploy --only hosting",
-    "deploy:firestore": "firebase deploy --only firestore"
+    "deploy:firestore": "firebase deploy --only firestore",
+    "oracle:prep-env": "bash scripts/oracle/prep-local-env.sh"
   },
   "devDependencies": {
     "turbo": "^2.3.0",

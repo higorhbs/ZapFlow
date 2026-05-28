@@ -1,0 +1,89 @@
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    volumes:
+      - redis_data:/data
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--maxmemory",
+        "256mb",
+        "--maxmemory-policy",
+        "allkeys-lru",
+      ]
+    mem_limit: "384m"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    init: true
+    logging: *default-logging
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "3001"
+    environment:
+      NODE_ENV: production
+      API_PORT: 3001
+      ENABLE_WORKERS: ${ENABLE_WORKERS:-true}
+      REDIS_URL: redis://redis:6379
+      WA_SESSION_PATH: /app/sessions
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
+      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-/app/.secrets/firebase-adminsdk.json}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_STARTER: ${STRIPE_PRICE_STARTER:-}
+      STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO:-}
+      STRIPE_PRICE_UNLIMITED: ${STRIPE_PRICE_UNLIMITED:-}
+      ASAAS_API_KEY: ${ASAAS_API_KEY:-}
+      ASAAS_BASE_URL: ${ASAAS_BASE_URL:-https://sandbox.asaas.com/api/v3}
+    volumes:
+      - wa_sessions:/app/sessions
+      - ./.secrets:/app/.secrets:ro
+    mem_limit: "1g"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@zapflow.local}
+    volumes:
+      - ./scripts/oracle/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  redis_data:
+  wa_sessions:
+  caddy_data:
+  caddy_config:
