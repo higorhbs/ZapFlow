@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const BUSINESS_TYPE_OPTIONS = [
+const BUSINESS_TYPE_OPTIONS = [
   { value: "BARBERSHOP", label: "Barbearia", icon: Scissors, color: "bg-slate-100 text-slate-700 border-slate-200" },
   { value: "SALON", label: "Salão / Manicure", icon: Sparkles, color: "bg-pink-50 text-pink-700 border-pink-200" },
   {
@@ -25,7 +25,7 @@ export const BUSINESS_TYPE_OPTIONS = [
   { value: "OTHER", label: "Outro", icon: LayoutGrid, color: "bg-gray-100 text-gray-700 border-gray-200" },
 ] as const;
 
-export type BusinessTypeValue = (typeof BUSINESS_TYPE_OPTIONS)[number]["value"];
+type BusinessTypeValue = (typeof BUSINESS_TYPE_OPTIONS)[number]["value"];
 
 type Props = {
   value: string;

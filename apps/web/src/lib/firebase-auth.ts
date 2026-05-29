@@ -155,7 +155,7 @@ function isPrivateNetworkHost(host: string): boolean {
   return false;
 }
 
-export function assertGoogleAuthOrigin(): void {
+function assertGoogleAuthOrigin(): void {
   if (typeof window === "undefined") return;
   const host = window.location.hostname;
   if (isPrivateNetworkHost(host)) {
@@ -233,12 +233,6 @@ let googleRedirectPromise: Promise<{ token: string; user: User } | null> | null 
 
 export function completeGoogleRedirect() {
   return googleRedirectPromise ?? Promise.resolve(null);
-}
-
-export async function getIdToken(forceRefresh = false): Promise<string | null> {
-  const user = getClientAuth().currentUser;
-  if (!user) return null;
-  return user.getIdToken(forceRefresh);
 }
 
 export async function logoutFirebase() {

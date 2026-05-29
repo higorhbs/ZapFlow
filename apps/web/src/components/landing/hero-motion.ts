@@ -271,6 +271,6 @@ export function createHeroVariants(reduced: boolean): HeroMotionVariants {
   } satisfies HeroMotionVariants;
 }
 
-export const HERO_TITLE_LEAD = "Revolução no atendimento automático pelo";
+const HERO_TITLE_LEAD = "Revolução no atendimento automático pelo";
 export const HERO_TITLE_ACCENT = "WhatsApp";
 export const HERO_TITLE_WORDS = HERO_TITLE_LEAD.split(" ");
