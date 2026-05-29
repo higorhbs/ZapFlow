@@ -5,5 +5,5 @@ export function generateStaticParams() {
 }
 
 export default function BusinessLayout({ children }: { children: React.ReactNode }) {
-  return <BusinessShell>{children}</BusinessShell>;
+  return <BusinessShell usePanelHost>{children}</BusinessShell>;
 }

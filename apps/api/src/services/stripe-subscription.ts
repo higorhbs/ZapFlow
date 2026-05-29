@@ -1,6 +1,21 @@
-import type Stripe from "stripe";
+export type StripeSubscriptionPayload = {
+  id?: string;
+  status?: string;
+  cancel_at?: number | null;
+  cancel_at_period_end?: boolean;
+  canceled_at?: number | null;
+  current_period_end?: number | null;
+  current_period_start?: number | null;
+  items?: {
+    data?: Array<{
+      current_period_end?: number | null;
+      current_period_start?: number | null;
+      price?: { id?: string | null } | null;
+    }>;
+  };
+};
 
-export function getSubscriptionAccessEndIso(sub: Stripe.Subscription): string | null {
+export function getSubscriptionAccessEndIso(sub: StripeSubscriptionPayload): string | null {
   const item = sub.items?.data?.[0];
   const endUnix =
     (typeof sub.cancel_at === "number" ? sub.cancel_at : null) ??
@@ -11,17 +26,17 @@ export function getSubscriptionAccessEndIso(sub: Stripe.Subscription): string | 
   return new Date(endUnix * 1000).toISOString();
 }
 
-export function getSubscriptionCanceledAtIso(sub: Stripe.Subscription): string | null {
+export function getSubscriptionCanceledAtIso(sub: StripeSubscriptionPayload): string | null {
   if (typeof sub.canceled_at !== "number") return null;
   return new Date(sub.canceled_at * 1000).toISOString();
 }
 
-export function isSubscriptionCancelPending(sub: Stripe.Subscription): boolean {
+export function isSubscriptionCancelPending(sub: StripeSubscriptionPayload): boolean {
   return Boolean(sub.cancel_at_period_end) || (typeof sub.cancel_at === "number" && sub.status === "active");
 }
 
 export function subscriptionCancelPatch(
-  sub: Stripe.Subscription,
+  sub: StripeSubscriptionPayload,
   tenant: { canceledAt?: string; cancelAtPeriodEnd?: boolean }
 ): {
   cancelAtPeriodEnd: boolean;

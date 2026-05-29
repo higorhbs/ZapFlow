@@ -1,5 +1,4 @@
-import { Worker, Queue, QueueEvents } from "bullmq";
-import IORedis from "ioredis";
+import { Worker, Queue, type ConnectionOptions } from "bullmq";
 import { processMessage, BotContext } from "../services/bot";
 import { requireEnv } from "../env";
 import { WhatsAppManager } from "@zapflow/whatsapp-client";
@@ -20,13 +19,14 @@ export interface ReminderJob {
 
 let messageQueue: Queue | null = null;
 let reminderQueue: Queue | null = null;
-let connection: IORedis | null = null;
+let connection: ConnectionOptions | null = null;
 
-export function getRedisConnection(): IORedis {
+export function getRedisConnection(): ConnectionOptions {
   if (!connection) {
-    connection = new IORedis(requireEnv("REDIS_URL"), {
+    connection = {
+      url: requireEnv("REDIS_URL"),
       maxRetriesPerRequest: null,
-    });
+    };
   }
   return connection;
 }
@@ -66,7 +66,6 @@ export function startMessageWorker(waManager: WhatsAppManager) {
         } else {
           await client.sendText(customerPhone, resp.text);
         }
-        // pequeno delay entre mensagens consecutivas
         await new Promise((r) => setTimeout(r, 800));
       }
     },

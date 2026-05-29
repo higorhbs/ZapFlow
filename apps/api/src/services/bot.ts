@@ -16,6 +16,7 @@ import {
   findConflictingAppointment,
   listCustomerAppointments,
   getBusinessAsaasIntegration,
+  type Conversation,
 } from "@zapflow/firebase";
 import {
   APP_DISPLAY_NAME,

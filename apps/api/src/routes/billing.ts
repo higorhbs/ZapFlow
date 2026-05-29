@@ -9,6 +9,7 @@ import {
   getSubscriptionAccessEndIso,
   isSubscriptionCancelPending,
   subscriptionCancelPatch,
+  type StripeSubscriptionPayload,
 } from "../services/stripe-subscription.js";
 
 const planSchema = z.object({
@@ -113,7 +114,7 @@ function planFromPriceId(priceId: string | null | undefined): Tenant["plan"] | n
 
 const ACTIVE_SUB_STATUSES = ["active", "trialing", "past_due", "unpaid"] as const;
 
-type StripeSubscription = Stripe.Subscription;
+type StripeSubscription = StripeSubscriptionPayload;
 
 function getSubscriptionBillingPeriod(sub: StripeSubscription): { start: number; end: number } | null {
   const item = sub.items?.data?.[0];

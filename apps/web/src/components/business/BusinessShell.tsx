@@ -3,13 +3,18 @@
 import { BusinessHeader } from "./BusinessHeader";
 import { BusinessPageTransition } from "./BusinessPageTransition";
 import { BusinessRouteSync } from "./BusinessRouteSync";
+import { BusinessPanelHost } from "./BusinessPanelHost";
 import { useBusinessId } from "@/lib/use-business-id";
-import { useSyncWhatsAppBusiness } from "@/lib/use-sync-wa-business";
 import { BusinessPanelLoader } from "./BusinessPanelLoader";
 
-export function BusinessShell({ children }: { children: React.ReactNode }) {
+export function BusinessShell({
+  children,
+  usePanelHost = false,
+}: {
+  children: React.ReactNode;
+  usePanelHost?: boolean;
+}) {
   const id = useBusinessId({ required: false });
-  useSyncWhatsAppBusiness(id || "");
 
   if (!id) {
     return (
@@ -24,7 +29,7 @@ export function BusinessShell({ children }: { children: React.ReactNode }) {
     <div className="flex flex-col min-h-full">
       <BusinessRouteSync />
       <BusinessHeader businessId={id} />
-      <BusinessPageTransition>{children}</BusinessPageTransition>
+      <BusinessPageTransition>{usePanelHost ? <BusinessPanelHost /> : children}</BusinessPageTransition>
     </div>
   );
 }

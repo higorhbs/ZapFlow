@@ -4,6 +4,8 @@ import NextLink, { type LinkProps } from "next/link";
 import type { ComponentProps, MouseEvent } from "react";
 import { hardNavigateHosting, hostingHref } from "@/lib/hosting-href";
 import { isStaticHostingClient } from "@/lib/static-hosting";
+import { isBusinessPanelHref } from "@/lib/business-nav";
+import { navigateBusinessPanel } from "@/lib/use-business-panel-nav";
 
 type AppLinkProps = LinkProps & Omit<ComponentProps<"a">, "href">;
 
@@ -51,6 +53,12 @@ export function AppLink({
     const handleClickCapture = (e: MouseEvent<HTMLAnchorElement>) => {
       onClick?.(e);
       if (e.defaultPrevented || isModifiedClick(e)) return;
+      if (isBusinessPanelHref(path)) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateBusinessPanel(path);
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       runNav();
