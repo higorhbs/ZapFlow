@@ -34,10 +34,11 @@ function isLocalDevHost() {
 
 function resolveApiBaseUrl() {
   const url = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (url) return url;
-  if (typeof window !== "undefined" && isLocalDevHost()) return "http://localhost:3001";
-  if (typeof window === "undefined") return process.env.NEXT_PUBLIC_API_URL?.trim() || "http://127.0.0.1:3001";
-  throw new Error("NEXT_PUBLIC_API_URL não configurada.");
+  const onLocal = isLocalDevHost();
+  if (url && !(url.includes("localhost") && !onLocal)) return url.replace(/\/$/, "");
+  if (onLocal) return url || "http://localhost:3001";
+  if (typeof window === "undefined") return url || "http://127.0.0.1:3001";
+  throw new Error("NEXT_PUBLIC_API_URL não configurada para produção.");
 }
 
 let apiBaseUrl: string | undefined;

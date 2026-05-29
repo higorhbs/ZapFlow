@@ -18,6 +18,7 @@
     "oracle:prep-env": "bash scripts/oracle/prep-local-env.sh",
     "stripe:sync-prices": "node scripts/stripe-sync-prices.mjs",
     "setup:billing-env": "node scripts/setup-billing-env.mjs",
+    "setup:server-env": "node scripts/setup-server-env.mjs",
     "oracle:setup-billing": "bash scripts/oracle/setup-billing-vm.sh"
   },
   "devDependencies": {
