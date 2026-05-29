@@ -12,8 +12,7 @@
     "site": "zapflow-higor-2026",
     "public": "apps/web/out",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "cleanUrls": true,
-    "trailingSlash": true,
+    "trailingSlash": false,
     "headers": [
       {
         "source": "/index.html",
@@ -29,16 +28,7 @@
     ],
     "redirects": [
       { "source": "/index.txt", "destination": "/", "type": 301 },
-      { "source": "/:path/index.txt", "destination": "/:path/", "type": 301 },
-      { "source": "/dashboard", "destination": "/dashboard/", "type": 301 },
-      { "source": "/businesses", "destination": "/businesses/", "type": 301 },
-      { "source": "/businesses/:id/conversations", "destination": "/businesses/:id/conversations/", "type": 301 },
-      { "source": "/businesses/:id/appointments", "destination": "/businesses/:id/appointments/", "type": 301 },
-      { "source": "/businesses/:id/catalog", "destination": "/businesses/:id/catalog/", "type": 301 },
-      { "source": "/businesses/:id/payments", "destination": "/businesses/:id/payments/", "type": 301 },
-      { "source": "/businesses/:id/faqs", "destination": "/businesses/:id/faqs/", "type": 301 },
-      { "source": "/businesses/:id/whatsapp", "destination": "/businesses/:id/whatsapp/", "type": 301 },
-      { "source": "/businesses/:id/settings", "destination": "/businesses/:id/settings/", "type": 301 }
+      { "source": "/:path/index.txt", "destination": "/:path", "type": 301 }
     ],
     "rewrites": [
       { "source": "/api/**", "function": "api" },

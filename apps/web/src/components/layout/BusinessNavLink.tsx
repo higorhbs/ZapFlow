@@ -1,9 +1,16 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import { AppLink as Link } from "@/components/AppLink";
 import { cn } from "@/lib/utils";
-import { isActivePanelRoute } from "@/lib/business-nav";
+import {
+  canUseBusinessPanelSpa,
+  isActivePanelRoute,
+  isBusinessPanelHref,
+} from "@/lib/business-nav";
 import { useEffectivePathname } from "@/lib/use-effective-pathname";
+import { isFirebaseHostingClient } from "@/lib/hosting-href";
+import { navigateBusinessPanel } from "@/lib/use-business-panel-nav";
 import type { LucideIcon } from "lucide-react";
 
 type BusinessNavLinkProps = {
@@ -24,10 +31,18 @@ export function BusinessNavLink({
   const pathname = useEffectivePathname();
   const active = isActivePanelRoute(pathname, href);
 
+  const onPanelClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (!isFirebaseHostingClient() || !isBusinessPanelHref(href)) return;
+    if (!canUseBusinessPanelSpa(pathname)) return;
+    e.preventDefault();
+    navigateBusinessPanel(href);
+  };
+
   if (layout === "mobile") {
     return (
       <Link
         href={href}
+        onClick={onPanelClick}
         className={cn(
           "relative flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium transition-colors duration-200",
           active ? "text-brand-700" : "text-gray-500 hover:text-gray-700"
@@ -53,6 +68,7 @@ export function BusinessNavLink({
   return (
     <Link
       href={href}
+      onClick={onPanelClick}
       className={cn(
         "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
         active

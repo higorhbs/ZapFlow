@@ -23,9 +23,9 @@ export function HostingRouteGuard({ children }: { children: React.ReactNode }) {
     }
 
     const path = window.location.pathname;
-    const withSlash = hostingHref(path);
-    if (withSlash !== path) {
-      window.location.replace(`${withSlash}${window.location.search}${window.location.hash}`);
+    const canonical = hostingHref(path);
+    if (canonical !== path) {
+      window.location.replace(`${canonical}${window.location.search}${window.location.hash}`);
     }
   }, [pathname]);
 

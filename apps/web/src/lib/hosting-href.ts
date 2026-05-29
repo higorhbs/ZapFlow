@@ -16,12 +16,12 @@ export function hostingHref(href: string): string {
   const pathname = qIdx >= 0 ? withoutHash.slice(0, qIdx) : withoutHash;
   const search = qIdx >= 0 ? withoutHash.slice(qIdx) : "";
 
-  if (pathname === "/" || pathname.endsWith("/")) {
-    return pathname + search + hash;
-  }
   if (/\.[a-z0-9]{2,8}$/i.test(pathname)) {
     return pathname + search + hash;
   }
 
-  return `${pathname}/${search}${hash}`;
+  const normalized =
+    pathname.length > 1 && pathname.endsWith("/") ? pathname.replace(/\/+$/, "") : pathname;
+
+  return normalized + search + hash;
 }

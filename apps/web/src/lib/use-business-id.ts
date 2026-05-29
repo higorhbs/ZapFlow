@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useEffectivePathname } from "@/lib/use-effective-pathname";
 import { businessApi } from "./api";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -18,13 +18,8 @@ export { HOSTING_PLACEHOLDER_BUSINESS_ID, persistBusinessId, persistBusinessSnap
 type UseBusinessIdOptions = { required?: boolean };
 
 export function useBusinessId(opts: UseBusinessIdOptions = { required: true }): string {
-  const nextPathname = usePathname() ?? "";
-  const [pathname, setPathname] = useState(nextPathname);
-  const onBusinessRoute = inBusinessArea(pathname) || inBusinessArea(nextPathname);
-
-  useEffect(() => {
-    setPathname(window.location.pathname || nextPathname);
-  }, [nextPathname]);
+  const pathname = useEffectivePathname();
+  const onBusinessRoute = inBusinessArea(pathname);
 
   const { uid, ready } = useAuth();
 

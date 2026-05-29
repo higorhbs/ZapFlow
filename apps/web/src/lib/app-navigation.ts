@@ -47,7 +47,8 @@ export function sanitizeHostingPath(pathname: string): string | null {
   if (!pathname.endsWith(".txt")) return null;
   if (pathname === "/index.txt" || pathname.endsWith("/index.txt")) {
     const base = pathname.replace(/\/index\.txt$/, "").replace(/\.txt$/, "");
-    return base ? `${base}/` : "/";
+    return base || "/";
   }
-  return pathname.replace(/\.txt$/, "/") || "/";
+  const base = pathname.replace(/\.txt$/, "");
+  return base || "/";
 }

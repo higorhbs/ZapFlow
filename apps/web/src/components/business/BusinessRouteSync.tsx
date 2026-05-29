@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname } from "next/navigation";
 import { useBusinessId } from "@/lib/use-business-id";
+import { useEffectivePathname } from "@/lib/use-effective-pathname";
 import { fixPlaceholderBusinessPath } from "@/lib/business-route";
 
 export function BusinessRouteSync() {
-  const pathname = usePathname() ?? "";
+  const pathname = useEffectivePathname();
   const businessId = useBusinessId({ required: false });
 
   useEffect(() => {
