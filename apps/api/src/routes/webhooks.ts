@@ -118,15 +118,18 @@ export async function webhookRoutes(app: FastifyInstance) {
         canceled: "CANCELED",
         unpaid: "PAST_DUE",
       };
+      let planStatus = statusMap[sub.status] ?? "ACTIVE";
       if (customerId) {
         const tenant = await getTenantByStripeCustomerId(customerId);
         if (tenant) {
+          const resolvedPlan = (plan as any) ?? tenant.plan;
+          if (resolvedPlan !== "STARTER" && planStatus === "TRIALING") planStatus = "ACTIVE";
           await updateTenant(tenant.id, {
             stripeSubscriptionId: sub.id,
             stripePriceId: priceId,
             currentPeriodEnd: new Date(sub.current_period_end * 1000).toISOString(),
-            plan: (plan as any) ?? tenant.plan,
-            planStatus: statusMap[sub.status] ?? "ACTIVE",
+            plan: resolvedPlan,
+            planStatus,
           });
         }
       }

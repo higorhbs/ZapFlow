@@ -4,13 +4,20 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { tenantApi, billingApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { PLAN_LABELS, formatCurrency } from "@/lib/utils";
-import { PLAN_PRICES, planMarketingFeatures } from "@zapflow/shared";
+import {
+  PLAN_PRICES,
+  planMarketingFeatures,
+  isStarterTrialActive,
+  isStarterTrialExpired,
+  starterTrialDaysLeft,
+  STARTER_TRIAL_DAYS,
+} from "@zapflow/shared";
 import type { Plan } from "@zapflow/firebase/client";
 import { toast } from "sonner";
-import { differenceInDays, format } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  Check, Crown, Loader2, Zap, Lock, AlertTriangle, Clock, X,
+  Check, Crown, Loader2, Zap, Lock, AlertTriangle, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -112,43 +119,36 @@ export function TrialGate() {
 
   if (!tenant) return null;
 
-  const now = new Date();
-  const sevenDaysFromCreation = new Date(new Date(tenant.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000);
-  const trialEnd = new Date(Math.min(new Date(tenant.trialEndsAt).getTime(), sevenDaysFromCreation.getTime()));
-  const daysLeft = differenceInDays(trialEnd, now);
-  const trialExpired = now > trialEnd;
+  const trialExpired = isStarterTrialExpired(tenant);
+  const daysLeft = starterTrialDaysLeft(tenant);
+  const trialEnd = new Date(tenant.trialEndsAt);
 
   const isBlocked =
-    (tenant.planStatus === "TRIALING" && trialExpired) ||
+    trialExpired ||
     tenant.planStatus === "PAST_DUE" ||
     tenant.planStatus === "CANCELED";
 
-  const showBanner =
-    tenant.planStatus === "TRIALING" && !trialExpired && daysLeft <= 3;
+  const showBanner = isStarterTrialActive(tenant) && daysLeft <= 3;
 
   if (!isBlocked && !showBanner) return null;
 
   return (
     <>
-      {/* Countdown banner */}
       {showBanner && !isBlocked && (
         <div className="fixed top-0 inset-x-0 z-40 bg-amber-500 text-white px-4 py-2.5 flex items-center justify-center gap-2 text-sm font-medium shadow">
           <Clock className="w-4 h-4 flex-shrink-0" />
           {daysLeft === 0
-            ? "Seu teste gratuito termina hoje! Escolha um plano para continuar."
-            : `${daysLeft} dia${daysLeft === 1 ? "" : "s"} restante${daysLeft === 1 ? "" : "s"} no teste grátis.`}
+            ? "Seu teste gratuito do Starter termina hoje! Escolha um plano para continuar."
+            : `${daysLeft} dia${daysLeft === 1 ? "" : "s"} restante${daysLeft === 1 ? "" : "s"} no teste grátis do Starter.`}
           <a href="/plan" className="underline underline-offset-2 ml-1 hover:text-amber-100">
             Ver planos →
           </a>
         </div>
       )}
 
-      {/* Blocking overlay */}
       {isBlocked && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto py-8 px-4">
           <div className="w-full max-w-3xl">
-
-            {/* Header card */}
             <div className="rounded-2xl bg-white shadow-2xl overflow-hidden mb-4">
               <div className="h-1.5 bg-gradient-to-r from-brand-500 via-violet-500 to-brand-500 bg-[length:200%] animate-[shimmer_2s_linear_infinite]" />
               <div className="p-6 flex items-start gap-4">
@@ -174,7 +174,7 @@ export function TrialGate() {
                     <>
                       <h2 className="text-xl font-bold text-gray-900">Seu teste gratuito encerrou</h2>
                       <p className="text-gray-500 text-sm mt-1">
-                        O período de 7 dias expirou em{" "}
+                        O período de {STARTER_TRIAL_DAYS} dias do plano Starter expirou em{" "}
                         <strong>{format(trialEnd, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</strong>.
                         Escolha um plano para continuar usando o AtendeJa.
                       </p>
@@ -187,7 +187,6 @@ export function TrialGate() {
               </div>
             </div>
 
-            {/* Plan cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               {PLANS.map(({ id, highlight, extras }) => (
                 <PlanCard
@@ -201,7 +200,6 @@ export function TrialGate() {
               ))}
             </div>
 
-            {/* Footer note */}
             <p className="text-center text-xs text-white/70">
               Pagamento seguro via Stripe. Após confirmar, o acesso é liberado automaticamente.
             </p>

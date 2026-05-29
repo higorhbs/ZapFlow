@@ -5,11 +5,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tenantApi, businessApi, billingApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { PLAN_LABELS, PLAN_STATUS_LABELS, cn, formatCurrency } from "@/lib/utils";
-import { PLAN_LIMITS, PLAN_PRICES, planMarketingFeatures, formatPlanLimit } from "@zapflow/shared";
+import { PLAN_LIMITS, PLAN_PRICES, planMarketingFeatures, formatPlanLimit, effectivePlanStatus, isStarterTrialActive, starterTrialDaysLeft } from "@zapflow/shared";
 import type { Plan } from "@zapflow/firebase/client";
 import { toast } from "sonner";
 import { Check, Crown, Loader2, Sparkles, Zap, ArrowRight, CalendarDays, BookOpen, CreditCard, ShieldCheck, AlertTriangle } from "lucide-react";
-import { format, differenceInDays } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -103,9 +103,9 @@ export default function PlanPage() {
     );
   }
 
-  const statusMeta = PLAN_STATUS_LABELS[tenant.planStatus] ?? PLAN_STATUS_LABELS.ACTIVE;
-  const trialDaysLeft = differenceInDays(new Date(tenant.trialEndsAt), new Date());
-  const inTrial = tenant.planStatus === "TRIALING" && trialDaysLeft >= 0;
+  const statusMeta = PLAN_STATUS_LABELS[effectivePlanStatus(tenant)] ?? PLAN_STATUS_LABELS.ACTIVE;
+  const inTrial = isStarterTrialActive(tenant);
+  const trialDaysLeft = starterTrialDaysLeft(tenant);
   const limits = PLAN_LIMITS[tenant.plan];
   const canSubmitCancel = Boolean(cancellationPreview?.canCancel && lgpdConsent && !cancelPlan.isPending);
 
@@ -163,11 +163,6 @@ export default function PlanPage() {
           </div>
         </div>
 
-        {!inTrial && (
-          <p className="relative text-white/50 text-xs mt-4">
-            Teste até {format(new Date(tenant.trialEndsAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-          </p>
-        )}
         <Button
           type="button"
           variant="outline"

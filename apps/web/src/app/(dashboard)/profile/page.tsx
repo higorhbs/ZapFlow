@@ -21,7 +21,7 @@ import {
 } from "@/lib/firebase-auth";
 import { PLAN_LABELS, cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { CreditCard, Loader2, Mail, Lock, User, Shield, Sparkles, Chrome, FileDown, ChevronRight, Trash2, EyeOff } from "lucide-react";
+import { CreditCard, Loader2, Mail, Lock, User, Shield, Sparkles, Chrome, FileDown, ChevronRight, Trash2, EyeOff, Crown, Zap } from "lucide-react";
 
 const nameSchema = z.object({
   name: z.string().min(2, "Nome muito curto"),
@@ -157,29 +157,45 @@ export default function ProfilePage() {
     <div className="p-6 max-w-5xl mx-auto">
 
       {/* Profile hero */}
-      <div className="rounded-2xl bg-gradient-to-r from-brand-600 to-brand-700 p-5 mb-6 flex items-center gap-4">
-        {user?.photoURL ? (
-          <img
-            src={user.photoURL}
-            alt={tenant.name}
-            className="w-14 h-14 rounded-full object-cover ring-2 ring-white/30"
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <div className="w-14 h-14 rounded-full bg-white/20 text-white flex items-center justify-center text-xl font-bold ring-2 ring-white/30 flex-shrink-0">
-            {initials}
+      {(() => {
+        const planHero: Record<string, { gradient: string; sub: string; icon: React.ReactNode; badge: string }> = {
+          FREE:      { gradient: "from-gray-600 to-gray-800",     sub: "text-gray-300",   icon: <Zap className="w-3.5 h-3.5" />,   badge: "bg-white/15 text-white" },
+          PRO:       { gradient: "from-brand-600 to-brand-800",   sub: "text-brand-200",  icon: <Zap className="w-3.5 h-3.5" />,   badge: "bg-white/20 text-white" },
+          UNLIMITED: { gradient: "from-violet-600 to-purple-800", sub: "text-violet-200", icon: <Crown className="w-3.5 h-3.5" />, badge: "bg-white/20 text-white" },
+        };
+        const h = planHero[tenant.plan] ?? planHero.FREE;
+        return (
+          <div className={cn("rounded-2xl bg-gradient-to-r p-5 mb-6 flex items-center gap-4", h.gradient)}>
+            {user?.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt={tenant.name}
+                className="w-14 h-14 rounded-full object-cover ring-2 ring-white/30 flex-shrink-0"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-white/20 text-white flex items-center justify-center text-xl font-bold ring-2 ring-white/30 flex-shrink-0">
+                {initials}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-white font-semibold text-lg leading-tight truncate">{tenant.name}</p>
+              <p className={cn("text-sm truncate", h.sub)}>{tenant.email}</p>
+            </div>
+            <Link
+              href="/plan"
+              className={cn(
+                "flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all hover:brightness-110 hover:ring-2 hover:ring-white/30",
+                h.badge
+              )}
+              aria-label={`Plano ${PLAN_LABELS[tenant.plan]} — ver detalhes`}
+            >
+              {h.icon}
+              {PLAN_LABELS[tenant.plan]}
+            </Link>
           </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="text-white font-semibold text-lg leading-tight truncate">{tenant.name}</p>
-          <p className="text-brand-100 text-sm truncate">{tenant.email}</p>
-        </div>
-        <div className="flex-shrink-0 text-right">
-          <span className="inline-flex items-center px-3 py-1 rounded-full bg-white/20 text-white text-xs font-semibold">
-            Plano {PLAN_LABELS[tenant.plan]}
-          </span>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Two-column grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">

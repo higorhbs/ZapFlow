@@ -82,7 +82,7 @@ function PlanWobbleCard({
             <span className="text-sm font-medium text-white/70">/mês</span>
           </p>
           <p className="mt-1 text-sm text-white/65">
-            14 dias grátis · sem cartão
+            {id === "STARTER" ? "14 dias grátis · sem cartão" : "Cobrança imediata · sem teste"}
           </p>
 
           <ul className="mt-6 flex-1 space-y-2.5 text-sm text-white/90">
@@ -107,7 +107,7 @@ function PlanWobbleCard({
                 : "bg-white/15 text-white backdrop-blur-sm hover:bg-white/25",
             )}
           >
-            Começar grátis
+            {id === "STARTER" ? "Começar grátis" : "Assinar agora"}
           </Button>
         </div>
       </WobbleCard>
@@ -132,7 +132,7 @@ export function LandingPlans() {
         <div className="mx-auto max-w-2xl text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200/80 bg-white/80 px-3 py-1 text-xs font-semibold text-brand-800 shadow-sm backdrop-blur-sm">
             <Zap className="size-3" aria-hidden />
-            14 dias grátis
+            Starter: 14 dias grátis
           </span>
           <h2
             id="plans-heading"

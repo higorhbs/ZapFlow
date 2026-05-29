@@ -46,7 +46,7 @@ export async function updateClientPlan(
   const snap = await getDoc(ref);
   if (!snap.exists()) throw new Error("Conta não encontrada");
   const current = { id: snap.id, ...snap.data() } as Tenant;
-  const trialActive = new Date() < new Date(current.trialEndsAt);
+  const trialActive = plan === "STARTER" && new Date() < new Date(current.trialEndsAt);
   const planStatus = opts?.planStatus ?? (trialActive ? "TRIALING" : "ACTIVE");
   const patch = { plan, planStatus, updatedAt: nowIso() };
   await updateDoc(ref, patch);

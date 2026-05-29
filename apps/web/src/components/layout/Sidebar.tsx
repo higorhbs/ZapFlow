@@ -17,19 +17,19 @@ import {
   Banknote,
   Loader2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, BUSINESS_TYPE_LABELS } from "@/lib/utils";
 import { removeToken } from "@/lib/auth";
 import { logoutFirebase } from "@/lib/firebase-auth";
 import { useAppRouter } from "@/lib/app-navigation";
 import { SidebarProfile } from "./SidebarProfile";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { businessApi, whatsappApi, conversationApi } from "@/lib/api";
-import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { VocabLabel } from "@/components/layout/VocabLabel";
 import { BusinessNavLink } from "@/components/layout/BusinessNavLink";
 import { panelHref } from "@/lib/business-nav";
 import { IaIcon } from "@/lib/ia-brand";
+import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 
@@ -40,6 +40,8 @@ export function Sidebar() {
 
   const v = useBusinessVocabulary({ requiredId: false });
   const businessId = v.businessId || undefined;
+
+  const { pixEnabled } = usePlanAllowsPix();
 
   const queryClient = useQueryClient();
 
@@ -79,7 +81,9 @@ export function Sidebar() {
         { href: panelHref(businessId, "conversations"), icon: MessageSquare, label: "Conversas", vocab: false },
         { href: panelHref(businessId, "appointments"), icon: Calendar, label: v.bookingsNav, vocab: true },
         { href: panelHref(businessId, "catalog"), icon: BookOpen, label: v.catalogNav, vocab: true },
-        { href: panelHref(businessId, "payments"), icon: Banknote, label: "Pagamentos", vocab: false },
+        ...(pixEnabled
+          ? [{ href: `${panelHref(businessId, "faqs")}?sec=pix`, icon: Banknote, label: "Pagamentos", vocab: false as const }]
+          : []),
         { href: panelHref(businessId, "faqs"), icon: IaIcon, label: "IA", vocab: false },
         { href: panelHref(businessId, "whatsapp"), icon: MessageSquare, label: "WhatsApp", vocab: false },
         { href: panelHref(businessId, "settings"), icon: Settings, label: "Configurações", vocab: false },

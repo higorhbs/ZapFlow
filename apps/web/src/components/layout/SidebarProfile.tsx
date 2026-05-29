@@ -8,8 +8,38 @@ import type { User } from "firebase/auth";
 import { tenantApi } from "@/lib/api";
 import { watchAuth } from "@/lib/firebase-auth";
 import { useAuth } from "@/contexts/auth-context";
-import { cn } from "@/lib/utils";
-import { ChevronRight } from "lucide-react";
+import { PLAN_LABELS, cn } from "@/lib/utils";
+import { ChevronRight, Crown, Zap } from "lucide-react";
+
+const PLAN_STYLE: Record<string, {
+  avatarActive: string;
+  avatarIdle: string;
+  badgeBg: string;
+  badgeText: string;
+  icon: React.ReactNode;
+}> = {
+  FREE: {
+    avatarActive: "bg-gray-700 text-white",
+    avatarIdle:   "bg-gray-100 text-gray-700",
+    badgeBg:      "bg-gray-100",
+    badgeText:    "text-gray-600",
+    icon: <Zap className="w-2.5 h-2.5" />,
+  },
+  PRO: {
+    avatarActive: "bg-brand-600 text-white",
+    avatarIdle:   "bg-brand-100 text-brand-700",
+    badgeBg:      "bg-brand-50",
+    badgeText:    "text-brand-700",
+    icon: <Zap className="w-2.5 h-2.5" />,
+  },
+  UNLIMITED: {
+    avatarActive: "bg-violet-600 text-white",
+    avatarIdle:   "bg-violet-100 text-violet-700",
+    badgeBg:      "bg-violet-50",
+    badgeText:    "text-violet-700",
+    icon: <Crown className="w-2.5 h-2.5" />,
+  },
+};
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -34,6 +64,8 @@ export function SidebarProfile() {
   const email = tenant?.email ?? user?.email ?? "";
   const photoURL = user?.photoURL ?? null;
   const active = pathname === "/profile";
+  const plan = (tenant?.plan ?? "FREE") as string;
+  const ps = PLAN_STYLE[plan] ?? PLAN_STYLE.FREE;
 
   return (
     <Link
@@ -54,7 +86,7 @@ export function SidebarProfile() {
         <div
           className={cn(
             "w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0",
-            active ? "bg-brand-600 text-white" : "bg-brand-100 text-brand-700"
+            active ? ps.avatarActive : ps.avatarIdle
           )}
         >
           {initials(name)}
@@ -64,11 +96,17 @@ export function SidebarProfile() {
         <p className={cn("text-sm font-medium truncate", active ? "text-brand-800" : "text-gray-900")}>
           {name}
         </p>
-        {email ? (
-          <p className="text-xs text-gray-500 truncate">{email}</p>
-        ) : (
-          <p className="text-xs text-gray-400">Ver perfil</p>
-        )}
+        <div className="flex items-center gap-1.5 mt-0.5">
+          {tenant && (
+            <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold", ps.badgeBg, ps.badgeText)}>
+              {ps.icon}
+              {PLAN_LABELS[plan]}
+            </span>
+          )}
+          {email && !tenant && (
+            <p className="text-xs text-gray-500 truncate">{email}</p>
+          )}
+        </div>
       </div>
       <ChevronRight
         className={cn(

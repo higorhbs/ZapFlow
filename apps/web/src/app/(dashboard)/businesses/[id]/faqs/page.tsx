@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { businessApi, faqApi } from "@/lib/api";
@@ -12,12 +13,14 @@ import { toast } from "sonner";
 import {
   MessageSquare, HelpCircle, Plus, Trash2, Loader2, X,
   ChevronUp, ChevronDown, Eye, Save, Pencil, Check,
-  Sparkles, Hash, MessageCircleQuestion, Zap,
+  Sparkles, Hash, MessageCircleQuestion, Zap, Banknote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BotMenuItemConfig } from "@zapflow/firebase/client";
 import { buildBotMenuEntries, getBusinessVocabulary } from "@zapflow/shared";
 import { IaIcon } from "@/lib/ia-brand";
+import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
+import { PaymentsPixPanel } from "@/components/payments/PaymentsPixPanel";
 
 const LEGACY_EMOJI: Record<string, string> = {
   APPOINTMENT: "📅",
@@ -82,7 +85,7 @@ const faqSchema = z.object({
 });
 type FAQForm = z.infer<typeof faqSchema>;
 
-type Tab = "menu" | "faqs";
+type Tab = "menu" | "faqs" | "payments";
 
 // ── Emoji picker ───────────────────────────────────────────────────────────────
 const EMOJI_CATS = [
@@ -931,7 +934,13 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
 // ── Page ───────────────────────────────────────────────────────────────────────
 export default function BotPage() {
   const businessId = useBusinessId();
+  const searchParams = useSearchParams();
+  const { pixEnabled } = usePlanAllowsPix();
   const [tab, setTab] = useState<Tab>("menu");
+
+  useEffect(() => {
+    if (searchParams.get("sec") === "pix" && pixEnabled) setTab("payments");
+  }, [searchParams, pixEnabled]);
 
   const { data: business, isLoading } = useQuery({
     queryKey: ["business", businessId],
@@ -963,11 +972,14 @@ export default function BotPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1.5 bg-gray-100 rounded-2xl w-fit mb-8 shadow-inner">
+      <div className="flex flex-wrap gap-1 p-1.5 bg-gray-100 rounded-2xl w-fit mb-8 shadow-inner">
         {([
-          { id: "menu", label: "Menu da IA", icon: MessageSquare },
-          { id: "faqs", label: "Perguntas & Respostas", icon: HelpCircle },
-        ] as const).map(({ id, label, icon: Icon }) => (
+          { id: "menu" as const, label: "Menu da IA", icon: MessageSquare },
+          ...(pixEnabled
+            ? [{ id: "payments" as const, label: "Pagamentos por PIX", icon: Banknote }]
+            : []),
+          { id: "faqs" as const, label: "Perguntas & Respostas", icon: HelpCircle },
+        ]).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
@@ -992,6 +1004,8 @@ export default function BotPage() {
         </div>
       ) : tab === "menu" ? (
         <BotMenuEditor businessId={businessId} initialMenu={initialMenu} businessName={business?.name ?? "Meu Negócio"} businessType={business?.type} />
+      ) : tab === "payments" ? (
+        <PaymentsPixPanel businessId={businessId} />
       ) : (
         <FAQsEditor businessId={businessId} businessType={business?.type} />
       )}
