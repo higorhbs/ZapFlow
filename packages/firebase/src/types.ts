@@ -56,6 +56,9 @@ export interface Business {
   greetingMsg: string;
   awayMsg: string;
   botMenu?: BotMenuItemConfig[];
+  botMenuEnabled?: boolean;
+  greetingEnabled?: boolean;
+  thanksMsg?: string;
   isConnected: boolean;
   createdAt: string;
   updatedAt: string;

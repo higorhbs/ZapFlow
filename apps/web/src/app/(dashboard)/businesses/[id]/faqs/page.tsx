@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BotMenuItemConfig } from "@zapflow/firebase/client";
-import { buildBotMenuEntries, getBusinessVocabulary } from "@zapflow/shared";
+import { buildBotMenuEntries, getBusinessVocabulary, renderTemplate, DEFAULT_THANKS_MSG } from "@zapflow/shared";
 import { IaIcon } from "@/lib/ia-brand";
 import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
 import { PaymentsPixPanel } from "@/components/payments/PaymentsPixPanel";
@@ -165,15 +165,32 @@ function EmojiPickerBalloon({
 }
 
 // ── BotMenuEditor ──────────────────────────────────────────────────────────────
-function BotMenuEditor({ businessId, initialMenu, businessName, businessType }: {
+function BotMenuEditor({
+  businessId,
+  initialMenu,
+  businessName,
+  businessType,
+  initialGreetingMsg,
+  initialMenuEnabled,
+  initialGreetingEnabled,
+  initialThanksMsg,
+}: {
   businessId: string;
   initialMenu: BotMenuItemConfig[];
   businessName: string;
   businessType?: string;
+  initialGreetingMsg: string;
+  initialMenuEnabled: boolean;
+  initialGreetingEnabled: boolean;
+  initialThanksMsg: string;
 }) {
   const v = getBusinessVocabulary(businessType);
   const queryClient = useQueryClient();
   const [items, setItems] = useState<BotMenuItemConfig[]>(initialMenu);
+  const [menuEnabled, setMenuEnabled] = useState(initialMenuEnabled);
+  const [greetingEnabled, setGreetingEnabled] = useState(initialGreetingEnabled);
+  const [greetingMsg, setGreetingMsg] = useState(initialGreetingMsg);
+  const [thanksMsg, setThanksMsg] = useState(initialThanksMsg);
 
   // Modal state (shared for create + edit)
   const [modal, setModal] = useState<{
@@ -190,12 +207,16 @@ function BotMenuEditor({ businessId, initialMenu, businessName, businessType }: 
     mutationFn: () =>
       businessApi.update(businessId, {
         botMenu: items.map(({ action: _legacy, ...it }) => it),
+        botMenuEnabled: menuEnabled,
+        greetingEnabled,
+        greetingMsg: greetingMsg.trim() || "Olá! Como posso ajudar?",
+        thanksMsg: thanksMsg.trim() || DEFAULT_THANKS_MSG,
       } as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["business", businessId] });
-      toast.success("Menu da IA salvo!");
+      toast.success("Configuração da IA salva!");
     },
-    onError: () => toast.error("Erro ao salvar menu"),
+    onError: () => toast.error("Erro ao salvar configuração"),
   });
 
   function move(index: number, dir: -1 | 1) {
@@ -242,10 +263,51 @@ function BotMenuEditor({ businessId, initialMenu, businessName, businessType }: 
     closeModal();
   }
 
-  const previewLines = buildPreviewLines(items, businessName);
+  const previewLines = buildPreviewLines(items, businessName, {
+    menuEnabled,
+    greetingEnabled,
+    greetingMsg,
+  });
+  const showPreview = previewLines !== null;
+
+  function ToggleRow({
+    label,
+    hint,
+    checked,
+    onChange,
+  }: {
+    label: string;
+    hint: string;
+    checked: boolean;
+    onChange: (v: boolean) => void;
+  }) {
+    return (
+      <div className="flex items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3.5">
+        <div>
+          <p className="text-sm font-medium text-gray-900">{label}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{hint}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onChange(!checked)}
+          className={cn(
+            "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 mt-0.5",
+            checked ? "bg-brand-600" : "bg-gray-200"
+          )}
+        >
+          <span
+            className={cn(
+              "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200",
+              checked ? "translate-x-5" : "translate-x-0"
+            )}
+          />
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="grid lg:grid-cols-[1fr_320px] gap-8">
+    <div className={cn("grid gap-8", showPreview && "lg:grid-cols-[1fr_320px]")}>
       {/* Emoji picker portal */}
       {pickerAnchor?.el && (
         <EmojiPickerBalloon
@@ -356,6 +418,47 @@ function BotMenuEditor({ businessId, initialMenu, businessName, businessType }: 
 
       {/* Editor */}
       <div>
+        <div className="space-y-3 mb-6">
+          <ToggleRow
+            label="Saudação inicial"
+            hint="Mensagem de boas-vindas antes do menu ou das respostas automáticas."
+            checked={greetingEnabled}
+            onChange={setGreetingEnabled}
+          />
+          {greetingEnabled && (
+            <textarea
+              value={greetingMsg}
+              onChange={(e) => setGreetingMsg(e.target.value)}
+              rows={3}
+              className="input resize-none w-full"
+              placeholder={`Olá {nome}! Bem-vindo ao {negocio} 😊 Como posso ajudar?`}
+            />
+          )}
+
+          <ToggleRow
+            label="Menu numérico"
+            hint="Desativado: a IA responde só pelas perguntas e respostas cadastradas."
+            checked={menuEnabled}
+            onChange={setMenuEnabled}
+          />
+
+          <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3.5">
+            <p className="text-sm font-medium text-gray-900">Resposta de agradecimento</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Quando o cliente mandar obrigado, valeu, vlw ou parecido.
+            </p>
+            <textarea
+              value={thanksMsg}
+              onChange={(e) => setThanksMsg(e.target.value)}
+              rows={2}
+              className="input resize-none w-full mt-3"
+              placeholder={DEFAULT_THANKS_MSG}
+            />
+          </div>
+        </div>
+
+        {menuEnabled ? (
+          <>
         <p className="text-sm text-gray-500 mb-5">
           Cada opção tem um <strong className="font-medium text-gray-700">nome</strong> que aparece no menu e uma{" "}
           <strong className="font-medium text-gray-700">resposta</strong> que a IA envia quando o cliente escolhe aquele número.
@@ -451,15 +554,22 @@ function BotMenuEditor({ businessId, initialMenu, businessName, businessType }: 
           </div>
           Adicionar opção
         </button>
+          </>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500 mb-4">
+            Menu desativado. Cadastre perguntas na aba <strong className="text-gray-700">Perguntas &amp; Respostas</strong>.
+          </div>
+        )}
 
         <button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}
           className="btn-primary shadow-sm">
           {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Salvar menu
+          Salvar configuração
         </button>
       </div>
 
       {/* Preview */}
+      {showPreview && previewLines && (
       <div className="flex flex-col items-center">
         <div className="flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full bg-gray-100 text-sm font-medium text-gray-600">
           <Eye className="w-4 h-4" />
@@ -553,6 +663,7 @@ function BotMenuEditor({ businessId, initialMenu, businessName, businessType }: 
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
@@ -587,11 +698,29 @@ function WaInline({ text }: { text: string }) {
 
 interface WaLine { text?: string; blank?: boolean }
 
-function buildPreviewLines(items: BotMenuItemConfig[], name: string): WaLine[] {
-  const enabled = items.filter((i) => i.enabled);
+function buildPreviewLines(
+  items: BotMenuItemConfig[],
+  name: string,
+  opts: { menuEnabled: boolean; greetingEnabled: boolean; greetingMsg: string },
+): WaLine[] | null {
+  const hasGreeting = opts.greetingEnabled && opts.greetingMsg.trim();
+  if (!opts.menuEnabled && !hasGreeting) return null;
+
   const lines: WaLine[] = [];
+
+  if (hasGreeting) {
+    const greeting = renderTemplate(opts.greetingMsg, { nome: "Maria", negocio: name });
+    for (const part of greeting.split("\n")) {
+      if (part.trim()) lines.push({ text: part });
+    }
+    if (opts.menuEnabled) lines.push({ blank: true });
+  }
+
+  if (!opts.menuEnabled) return lines;
+
+  const enabled = items.filter((i) => i.enabled);
   if (!enabled.length) {
-    lines.push({ text: `*${name}*` });
+    if (!lines.length) lines.push({ text: `*${name}*` });
     lines.push({ blank: true });
     lines.push({ text: "_Menu vazio — adicione itens ao lado_" });
     return lines;
@@ -972,7 +1101,7 @@ export default function BotPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">Configuração da IA</h1>
             <p className="text-brand-100 text-sm mt-0.5">
-              Personalize o menu e as respostas automáticas da IA no WhatsApp
+              Personalize saudação, menu e respostas automáticas da IA no WhatsApp
             </p>
           </div>
         </div>
@@ -1010,7 +1139,19 @@ export default function BotPage() {
           <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
         </div>
       ) : tab === "menu" ? (
-        <BotMenuEditor businessId={businessId} initialMenu={initialMenu} businessName={business?.name ?? "Meu Negócio"} businessType={business?.type} />
+        <BotMenuEditor
+          businessId={businessId}
+          initialMenu={initialMenu}
+          businessName={business?.name ?? "Meu Negócio"}
+          businessType={business?.type}
+          initialGreetingMsg={business?.greetingMsg ?? "Olá {nome}! Bem-vindo ao {negocio} 😊 Como posso ajudar?"}
+          initialMenuEnabled={(business as { botMenuEnabled?: boolean })?.botMenuEnabled !== false}
+          initialGreetingEnabled={(business as { greetingEnabled?: boolean })?.greetingEnabled !== false}
+          initialThanksMsg={
+            (business as { thanksMsg?: string })?.thanksMsg?.trim() ||
+            DEFAULT_THANKS_MSG
+          }
+        />
       ) : tab === "payments" ? (
         <PaymentsPixPanel businessId={businessId} />
       ) : (

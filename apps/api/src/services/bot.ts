@@ -171,12 +171,17 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   }
 
   if (isMenuRequest(messageBody)) {
+    if (!isBotMenuEnabled(business)) {
+      const pres = await sendPresentation(business, conversation, customerName);
+      if (pres.length) return pres;
+      return [];
+    }
     const menu = buildMainMenu(business);
     await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
     return [{ text: menu }];
   }
 
-  const menuPick = resolveMenuSelection(messageBody, business);
+  const menuPick = isBotMenuEnabled(business) ? resolveMenuSelection(messageBody, business) : null;
   if (menuPick === "EXIT") {
     return handleBotExit(business, conversation, sessionKey);
   }
@@ -201,12 +206,18 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   }
 
   if (isThanks(messageBody)) {
-    const text = "Por nada! 😊 Se precisar de algo, digite *menu*.";
+    const text = thanksReply(business, customerName);
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
 
   // ─── Respostas por intenção ────────────────────────────────────────────────
+  if (!isBotMenuEnabled(business) && !state) {
+    const fallback = buildFallbackMessage(business);
+    await saveAndReturn(business.id, conversation.id, [{ text: fallback }]);
+    return [{ text: fallback }];
+  }
+
   switch (intent) {
     case "CATALOG":
       return handleCatalog(business, conversation);
@@ -666,10 +677,12 @@ type MenuPick = {
 
 function getEnabledMenuEntries(business?: {
   botMenu?: unknown[];
+  botMenuEnabled?: boolean;
   type?: string;
   asaasConfigured?: boolean;
   tenantPlan?: string;
 }): MenuPick[] {
+  if (business?.botMenuEnabled === false) return [];
   let entries: MenuPick[];
   if (business?.botMenu && Array.isArray(business.botMenu) && business.botMenu.length > 0) {
     entries = (business.botMenu as MenuPick[]).filter((e) => e.enabled !== false);
@@ -875,9 +888,30 @@ async function handleBotExit(
   }
   const text =
     "👋 *Atendimento automático encerrado.*\n\n" +
-    "Quando quiser voltar, envie qualquer mensagem que eu te apresento o menu novamente.";
+    (isBotMenuEnabled(business)
+      ? "Quando quiser voltar, envie qualquer mensagem que eu te apresento o menu novamente."
+      : "Quando quiser voltar, envie qualquer mensagem ou sua dúvida.");
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
+}
+
+function isBotMenuEnabled(business?: { botMenuEnabled?: boolean }): boolean {
+  return business?.botMenuEnabled !== false;
+}
+
+function isGreetingEnabled(business?: { greetingEnabled?: boolean; greetingMsg?: string }): boolean {
+  if (business?.greetingEnabled === false) return false;
+  return Boolean(business?.greetingMsg?.trim());
+}
+
+function thanksReply(business: { name: string; thanksMsg?: string; botMenuEnabled?: boolean }, customerName?: string): string {
+  const vars = { nome: customerName ?? "cliente", negocio: business.name };
+  const custom = business.thanksMsg?.trim();
+  if (custom) return renderTemplate(custom, vars);
+  if (isBotMenuEnabled(business)) {
+    return renderTemplate("Por nada! 😊 Se precisar de algo, digite *menu*.", vars);
+  }
+  return renderTemplate("Por nada! 😊 Se tiver outra dúvida, é só enviar.", vars);
 }
 
 async function sendPresentation(
@@ -885,13 +919,25 @@ async function sendPresentation(
   conversation: Conversation,
   customerName?: string,
 ): Promise<BotResponse[]> {
-  const text = renderTemplate(business.greetingMsg, {
-    nome: customerName ?? "cliente",
-    negocio: business.name,
-  });
-  const menu = buildMainMenu(business);
-  await saveAndReturn(business.id, conversation.id, [{ text }, { text: menu }]);
-  return [{ text }, { text: menu }];
+  const out: BotResponse[] = [];
+
+  if (isGreetingEnabled(business)) {
+    const text = renderTemplate(business.greetingMsg, {
+      nome: customerName ?? "cliente",
+      negocio: business.name,
+    });
+    out.push({ text });
+  }
+
+  if (isBotMenuEnabled(business)) {
+    const menu = buildMainMenu(business);
+    if (menu.trim()) out.push({ text: menu });
+  }
+
+  if (!out.length) return [];
+
+  await saveAndReturn(business.id, conversation.id, out);
+  return out;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -899,7 +945,9 @@ async function sendPresentation(
 function buildMainMenu(business: {
   name: string;
   botMenu?: unknown[];
+  botMenuEnabled?: boolean;
 }): string {
+  if (!isBotMenuEnabled(business)) return "";
   const entries = getEnabledMenuEntries(business).map((e, i) => ({
     ...e,
     num: i + 1,
@@ -920,7 +968,10 @@ function buildMainMenu(business: {
   return text;
 }
 
-function buildFallbackMessage(business?: { botMenu?: unknown[] }): string {
+function buildFallbackMessage(business?: { botMenu?: unknown[]; botMenuEnabled?: boolean }): string {
+  if (!isBotMenuEnabled(business)) {
+    return "Não encontrei uma resposta. Reformule sua pergunta ou use palavras das FAQs cadastradas.";
+  }
   const n = getEnabledMenuEntries(business).length;
   if (n > 0) {
     return `Não entendi. 😅\n\nDigite um número de *1* a *${n}*, *menu* ou *sair*.`;
