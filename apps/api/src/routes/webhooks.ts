@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import Stripe from "stripe";
 import {
+  getTenant,
   getTenantByStripeCustomerId,
   getBusinessAsaasIntegration,
   getPaymentsByAsaasId,
@@ -93,16 +94,17 @@ export async function webhookRoutes(app: FastifyInstance) {
       const subscriptionId =
         typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
       const plan = planFromPriceId(session.metadata?.planPriceId) || (session.metadata?.plan as any) || null;
-      if (customerId) {
-        const tenant = await getTenantByStripeCustomerId(customerId);
-        if (tenant) {
-          await updateTenant(tenant.id, {
-            stripeCustomerId: customerId,
-            stripeSubscriptionId: subscriptionId ?? undefined,
-            plan: (plan as any) ?? tenant.plan,
-            planStatus: "ACTIVE",
-          });
-        }
+      let tenant = customerId ? await getTenantByStripeCustomerId(customerId) : null;
+      if (!tenant && session.metadata?.tenantId) {
+        tenant = await getTenant(String(session.metadata.tenantId));
+      }
+      if (tenant) {
+        await updateTenant(tenant.id, {
+          stripeCustomerId: customerId ?? tenant.stripeCustomerId,
+          stripeSubscriptionId: subscriptionId ?? undefined,
+          plan: (plan as any) ?? tenant.plan,
+          planStatus: "ACTIVE",
+        });
       }
     }
 

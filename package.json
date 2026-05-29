@@ -16,7 +16,9 @@
     "preview:hosting": "pnpm run build:hosting && firebase emulators:exec --only hosting \"echo Abra http://127.0.0.1:5000 (ou porta exibida acima)\"",
     "deploy:firestore": "firebase deploy --only firestore",
     "oracle:prep-env": "bash scripts/oracle/prep-local-env.sh",
-    "stripe:sync-prices": "node scripts/stripe-sync-prices.mjs"
+    "stripe:sync-prices": "node scripts/stripe-sync-prices.mjs",
+    "setup:billing-env": "node scripts/setup-billing-env.mjs",
+    "oracle:setup-billing": "bash scripts/oracle/setup-billing-vm.sh"
   },
   "devDependencies": {
     "turbo": "^2.3.0",

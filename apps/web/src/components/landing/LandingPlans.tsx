@@ -82,7 +82,7 @@ function PlanWobbleCard({
             <span className="text-sm font-medium text-white/70">/mês</span>
           </p>
           <p className="mt-1 text-sm text-white/65">
-            {id === "STARTER" ? "14 dias grátis · sem cartão" : "Cobrança imediata · sem teste"}
+            {id === "STARTER" ? "14 dias grátis · sem cartão" : "Cobrança imediata"}
           </p>
 
           <ul className="mt-6 flex-1 space-y-2.5 text-sm text-white/90">

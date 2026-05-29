@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tenantApi, businessApi, billingApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
@@ -34,6 +35,7 @@ const PLAN_ICON_BG: Record<Plan, string> = {
 
 export default function PlanPage() {
   const { uid, ready } = useAuth();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [cancelReason, setCancelReason] = useState("");
   const [lgpdConsent, setLgpdConsent] = useState(false);
@@ -43,6 +45,20 @@ export default function PlanPage() {
     queryFn: () => tenantApi.get(),
     enabled: ready && !!uid,
   });
+
+  useEffect(() => {
+    if (searchParams.get("checkout") !== "success" || !uid) return;
+    void queryClient.invalidateQueries({ queryKey: ["tenant", uid] });
+    toast.success("Pagamento recebido! Atualizando seu plano…");
+    const t = window.setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: ["tenant", uid] });
+    }, 3000);
+    const stop = window.setTimeout(() => clearInterval(t), 30000);
+    return () => {
+      clearInterval(t);
+      clearTimeout(stop);
+    };
+  }, [searchParams, queryClient, uid]);
 
   const { data: businesses = [] } = useQuery({
     queryKey: ["businesses", uid],

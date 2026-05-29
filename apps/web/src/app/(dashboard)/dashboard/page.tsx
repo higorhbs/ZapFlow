@@ -480,15 +480,20 @@ function DashboardContent({ business }: { business: any }) {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-bold text-white">{business.name}</h1>
-                <span className={cn(
-                  "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border",
-                  business.isConnected
-                    ? "bg-emerald-400/20 text-emerald-100 border-emerald-400/30"
-                    : "bg-white/10 text-white/60 border-white/20"
-                )}>
-                  <span className={cn("w-1.5 h-1.5 rounded-full", business.isConnected ? "bg-emerald-300" : "bg-white/40")} />
-                  {business.isConnected ? "Conectado" : "Desconectado"}
-                </span>
+                {business.isConnected ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border bg-emerald-400/20 text-emerald-100 border-emerald-400/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
+                    Conectado
+                  </span>
+                ) : (
+                  <Link
+                    href={`/businesses/${business.id}/whatsapp`}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border bg-white/10 text-white/60 border-white/20 hover:bg-white/20 hover:text-white transition-colors"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                    Desconectado
+                  </Link>
+                )}
               </div>
               <p className="text-white/70 text-sm mt-0.5">{business.phone}</p>
             </div>
