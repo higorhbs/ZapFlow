@@ -19,14 +19,15 @@ export function BusinessShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isFirebaseHostingClient()) return;
-    const enableSpa = () => {
-      if (getBusinessPanelSegment(window.location.pathname)) setPanelSpa(true);
+    const syncSpa = () => {
+      setPanelSpa(getBusinessPanelSegment(window.location.pathname) !== null);
     };
-    window.addEventListener(BUSINESS_PANEL_NAV_EVENT, enableSpa);
-    window.addEventListener("popstate", enableSpa);
+    syncSpa();
+    window.addEventListener(BUSINESS_PANEL_NAV_EVENT, syncSpa);
+    window.addEventListener("popstate", syncSpa);
     return () => {
-      window.removeEventListener(BUSINESS_PANEL_NAV_EVENT, enableSpa);
-      window.removeEventListener("popstate", enableSpa);
+      window.removeEventListener(BUSINESS_PANEL_NAV_EVENT, syncSpa);
+      window.removeEventListener("popstate", syncSpa);
     };
   }, []);
 

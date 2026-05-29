@@ -3,11 +3,7 @@
 import type { MouseEvent } from "react";
 import { AppLink as Link } from "@/components/AppLink";
 import { cn } from "@/lib/utils";
-import {
-  canUseBusinessPanelSpa,
-  isActivePanelRoute,
-  isBusinessPanelHref,
-} from "@/lib/business-nav";
+import { isActivePanelRoute, isBusinessPanelHref } from "@/lib/business-nav";
 import { useEffectivePathname } from "@/lib/use-effective-pathname";
 import { isFirebaseHostingClient } from "@/lib/hosting-href";
 import { navigateBusinessPanel } from "@/lib/use-business-panel-nav";
@@ -33,8 +29,8 @@ export function BusinessNavLink({
 
   const onPanelClick = (e: MouseEvent<HTMLAnchorElement>) => {
     if (!isFirebaseHostingClient() || !isBusinessPanelHref(href)) return;
-    if (!canUseBusinessPanelSpa(pathname)) return;
     e.preventDefault();
+    e.stopPropagation();
     navigateBusinessPanel(href);
   };
 

@@ -2,7 +2,7 @@
 
 import NextLink, { type LinkProps } from "next/link";
 import type { ComponentProps, MouseEvent } from "react";
-import { hostingHref, isFirebaseHostingClient } from "@/lib/hosting-href";
+import { hardNavigateHosting, hostingHref, isFirebaseHostingClient } from "@/lib/hosting-href";
 
 type AppLinkProps = LinkProps & Omit<ComponentProps<"a">, "href">;
 
@@ -46,8 +46,12 @@ export function AppLink({
       onClick?.(e);
       if (e.defaultPrevented || isModifiedClick(e)) return;
       e.preventDefault();
-      if (replace) window.location.replace(path);
-      else window.location.assign(path);
+      e.stopPropagation();
+      if (replace) {
+        window.location.replace(new URL(path, window.location.origin).href);
+      } else {
+        hardNavigateHosting(path);
+      }
     };
 
     return <a href={path} onClick={handleClick} {...rest} />;

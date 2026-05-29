@@ -1,8 +1,10 @@
 export function isFirebaseHostingClient(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
   return (
-    typeof window !== "undefined" &&
-    process.env.NODE_ENV === "production" &&
-    !window.location.hostname.includes("localhost")
+    host.endsWith(".web.app") ||
+    host.endsWith(".firebaseapp.com") ||
+    (process.env.NODE_ENV === "production" && !host.includes("localhost"))
   );
 }
 
@@ -24,4 +26,9 @@ export function hostingHref(href: string): string {
     pathname.length > 1 && pathname.endsWith("/") ? pathname.replace(/\/+$/, "") : pathname;
 
   return normalized + search + hash;
+}
+
+export function hardNavigateHosting(href: string): void {
+  const url = hostingHref(href);
+  window.location.href = new URL(url, window.location.origin).href;
 }
