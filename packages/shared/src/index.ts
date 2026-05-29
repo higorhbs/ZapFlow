@@ -244,7 +244,7 @@ export function planMarketingFeatures(plan: PlanTier): string[] {
 }
 
 export const PLAN_PRICES = {
-  STARTER: { brl: 49, label: "Starter" },
+  STARTER: { brl: 9.99, label: "Starter" },
   PRO: { brl: 99, label: "Pro" },
   UNLIMITED: { brl: 199, label: "Unlimited" },
 } as const;
