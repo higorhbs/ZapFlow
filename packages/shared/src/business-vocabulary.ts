@@ -1,3 +1,5 @@
+import { APP_DISPLAY_NAME } from "./brand.js";
+
 export type BusinessType =
   | "BARBERSHOP"
   | "SALON"
@@ -76,7 +78,7 @@ const DEFAULT: BusinessVocabulary = {
   botBookingServiceDefault: "Agendamento",
   botMyBookingPrompt: "meu agendamento",
   botCatalogEmpty:
-    "Ainda não há itens no *Catálogo*.\n\nCadastre no painel ZapFlow (menu Catálogo) para exibir aqui.",
+    `Ainda não há itens no *Catálogo*.\n\nCadastre no painel ${APP_DISPLAY_NAME} (menu Catálogo) para exibir aqui.`,
   botCatalogHeader: "Catálogo",
   botCatalogFooter:
     "\nPara agendar, digite *agendar* ou escolha a opção de agendamentos no *menu*.\nPara ver seu horário: *meu agendamento*.",
@@ -168,7 +170,7 @@ const BY_TYPE: Record<BusinessType, BusinessVocabulary> = {
     botBookingServiceDefault: "Pedido",
     botMyBookingPrompt: "meu pedido",
     botCatalogEmpty:
-      "Ainda não há itens no *Cardápio*.\n\nCadastre pratos no painel ZapFlow (menu Cardápio).",
+      `Ainda não há itens no *Cardápio*.\n\nCadastre pratos no painel ${APP_DISPLAY_NAME} (menu Cardápio).`,
     botCatalogHeader: "Cardápio",
     botCatalogFooter:
       "\nPara pedir, digite *pedido* ou escolha a opção no *menu*.\nPara ver seu pedido: *meu pedido*.",
@@ -226,7 +228,7 @@ const BY_TYPE: Record<BusinessType, BusinessVocabulary> = {
     botBookingServiceDefault: "Consulta",
     botMyBookingPrompt: "minha consulta",
     botCatalogEmpty:
-      "Ainda não há *serviços* cadastrados.\n\nAdicione no painel ZapFlow (menu Serviços).",
+      `Ainda não há *serviços* cadastrados.\n\nAdicione no painel ${APP_DISPLAY_NAME} (menu Serviços).`,
     botCatalogHeader: "Serviços",
     botCatalogFooter:
       "\nPara agendar consulta, digite *agendar* ou use o *menu*.\nPara ver sua consulta: *minha consulta*.",
@@ -278,7 +280,7 @@ const BY_TYPE: Record<BusinessType, BusinessVocabulary> = {
     botBookingServiceDefault: "Pedido",
     botMyBookingPrompt: "meu pedido",
     botCatalogEmpty:
-      "Ainda não há *produtos* cadastrados.\n\nCadastre no painel ZapFlow (menu Produtos).",
+      `Ainda não há *produtos* cadastrados.\n\nCadastre no painel ${APP_DISPLAY_NAME} (menu Produtos).`,
     botCatalogHeader: "Produtos",
     botCatalogFooter:
       "\nPara pedir, digite *pedido* ou use o *menu*.\nPara ver seu pedido: *meu pedido*.",

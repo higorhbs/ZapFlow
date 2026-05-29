@@ -249,6 +249,7 @@ export const PLAN_PRICES = {
   UNLIMITED: { brl: 199, label: "Unlimited" },
 } as const;
 
+export * from "./brand.js";
 export * from "./bot-menu.js";
 export * from "./business-vocabulary.js";
 export * from "./message-role.js";

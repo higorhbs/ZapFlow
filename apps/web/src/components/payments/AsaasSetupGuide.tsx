@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { APP_DISPLAY_NAME } from "@zapflow/shared";
 import { ChevronDown, ChevronUp, ChevronRight, ChevronLeft, ExternalLink, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -70,11 +71,11 @@ function MockupApiKey() {
   );
 }
 
-function MockupZapFlowForm() {
+function MockupAtendeJaForm() {
   return (
     <div className="rounded-lg border border-gray-200 overflow-hidden text-xs shadow-sm">
       <div className="bg-brand-600 px-3 py-2 text-[10px] font-semibold text-white">
-        ZapFlow — Pagamentos PIX
+        {APP_DISPLAY_NAME} — Pagamentos PIX
       </div>
       <div className="p-3 bg-white space-y-2.5">
         <div>
@@ -105,7 +106,7 @@ function MockupWebhook() {
           className="w-full block"
         />
         <div className="absolute top-2 right-2 bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md whitespace-nowrap">
-          Cole a URL e o token do ZapFlow
+          Cole a URL e o token do {APP_DISPLAY_NAME}
         </div>
       </div>
     </BrowserChrome>
@@ -188,7 +189,7 @@ const STEPS = [
     badge: "Painel Asaas",
     badgeColor: "text-blue-700 bg-blue-50",
     description:
-      "A chave API é o que permite o ZapFlow criar cobranças diretamente na sua conta Asaas.",
+      `A chave API é o que permite o ${APP_DISPLAY_NAME} criar cobranças diretamente na sua conta Asaas.`,
     tips: [
       <>
         No painel Asaas, vá em <strong>Minha conta → Integrações → API</strong>
@@ -206,16 +207,16 @@ const STEPS = [
   },
   {
     icon: "📋",
-    title: "Colar no ZapFlow",
+    title: `Colar no ${APP_DISPLAY_NAME}`,
     badge: "Esta página",
     badgeColor: "text-brand-700 bg-brand-50",
     description:
-      "Cole a chave API no formulário abaixo. O ZapFlow valida automaticamente a chave na hora de salvar.",
+      `Cole a chave API no formulário abaixo. O ${APP_DISPLAY_NAME} valida automaticamente a chave na hora de salvar.`,
     tips: [
       "Cole a chave no campo \"Chave API Asaas\" abaixo",
       "Clique em Salvar integração — você verá o saldo da conta Asaas se der certo",
     ],
-    mockup: <MockupZapFlowForm />,
+    mockup: <MockupAtendeJaForm />,
   },
   {
     icon: "🔗",
@@ -223,7 +224,7 @@ const STEPS = [
     badge: "Recomendado",
     badgeColor: "text-amber-700 bg-amber-50",
     description:
-      "O webhook permite que o Asaas avise o ZapFlow automaticamente quando um PIX for pago, confirmando a cobrança em tempo real.",
+      `O webhook permite que o Asaas avise o ${APP_DISPLAY_NAME} automaticamente quando um PIX for pago, confirmando a cobrança em tempo real.`,
     tips: [
       <>
         No Asaas: <strong>Integrações → Webhooks → Adicionar URL</strong>

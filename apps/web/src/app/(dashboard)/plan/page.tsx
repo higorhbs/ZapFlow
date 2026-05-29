@@ -48,10 +48,17 @@ export default function PlanPage() {
 
   useEffect(() => {
     if (searchParams.get("checkout") !== "success" || !uid) return;
+    void billingApi.sync().then(() => {
+      void queryClient.invalidateQueries({ queryKey: ["tenant", uid] });
+      void queryClient.invalidateQueries({ queryKey: ["billing-cancel-preview", uid] });
+    });
     void queryClient.invalidateQueries({ queryKey: ["tenant", uid] });
     toast.success("Pagamento recebido! Atualizando seu plano…");
     const t = window.setInterval(() => {
-      void queryClient.invalidateQueries({ queryKey: ["tenant", uid] });
+      void billingApi.sync().then(() => {
+        void queryClient.invalidateQueries({ queryKey: ["tenant", uid] });
+        void queryClient.invalidateQueries({ queryKey: ["billing-cancel-preview", uid] });
+      });
     }, 3000);
     const stop = window.setTimeout(() => clearInterval(t), 30000);
     return () => {
@@ -59,6 +66,15 @@ export default function PlanPage() {
       clearTimeout(stop);
     };
   }, [searchParams, queryClient, uid]);
+
+  useEffect(() => {
+    if (!ready || !uid || !tenant || tenant.planStatus === "CANCELED") return;
+    if (tenant.stripeCustomerId && tenant.stripeSubscriptionId && tenant.planStatus === "ACTIVE") return;
+    void billingApi.sync().then(() => {
+      void queryClient.invalidateQueries({ queryKey: ["tenant", uid] });
+      void queryClient.invalidateQueries({ queryKey: ["billing-cancel-preview", uid] });
+    });
+  }, [ready, uid, tenant, queryClient]);
 
   const { data: businesses = [] } = useQuery({
     queryKey: ["businesses", uid],
@@ -69,7 +85,8 @@ export default function PlanPage() {
   const { data: cancellationPreview, isLoading: previewLoading } = useQuery({
     queryKey: ["billing-cancel-preview", uid],
     queryFn: () => billingApi.cancellationPreview(),
-    enabled: ready && !!uid && !!tenant?.stripeCustomerId && tenant?.planStatus !== "CANCELED",
+    enabled: ready && !!uid && !!tenant && tenant.planStatus !== "CANCELED",
+    refetchOnWindowFocus: true,
   });
 
   const selectPlan = useMutation({

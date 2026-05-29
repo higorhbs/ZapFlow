@@ -36,7 +36,7 @@ export function PaymentsPixPanel({ businessId }: { businessId: string }) {
   return (
     <div className="space-y-6">
       <p className="text-sm text-gray-500 leading-relaxed">
-        Conecte a conta Asaas do negócio. Os PIX gerados no WhatsApp caem na carteira do lojista, não na ZapFlow.
+        Conecte a conta Asaas do negócio. Os PIX gerados no WhatsApp caem na carteira do lojista, não no AtendeJa.
       </p>
       <AsaasMerchantForm businessId={businessId} />
       <div>

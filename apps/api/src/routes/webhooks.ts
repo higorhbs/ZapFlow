@@ -122,7 +122,10 @@ export async function webhookRoutes(app: FastifyInstance) {
       };
       let planStatus = statusMap[sub.status] ?? "ACTIVE";
       if (customerId) {
-        const tenant = await getTenantByStripeCustomerId(customerId);
+        let tenant = await getTenantByStripeCustomerId(customerId);
+        if (!tenant && sub.metadata?.tenantId) {
+          tenant = await getTenant(String(sub.metadata.tenantId));
+        }
         if (tenant) {
           const resolvedPlan = (plan as any) ?? tenant.plan;
           if (resolvedPlan !== "STARTER" && planStatus === "TRIALING") planStatus = "ACTIVE";

@@ -3,9 +3,9 @@ import { resolve } from "path";
 import Stripe from "stripe";
 
 const PLANS = [
-  { env: "STRIPE_PRICE_STARTER", plan: "STARTER", brl: 9.99, name: "ZapFlow Starter" },
-  { env: "STRIPE_PRICE_PRO", plan: "PRO", brl: 99, name: "ZapFlow Pro" },
-  { env: "STRIPE_PRICE_UNLIMITED", plan: "UNLIMITED", brl: 199, name: "ZapFlow Unlimited" },
+  { env: "STRIPE_PRICE_STARTER", plan: "STARTER", brl: 9.99, name: "AtendeJa Starter" },
+  { env: "STRIPE_PRICE_PRO", plan: "PRO", brl: 99, name: "AtendeJa Pro" },
+  { env: "STRIPE_PRICE_UNLIMITED", plan: "UNLIMITED", brl: 199, name: "AtendeJa Unlimited" },
 ];
 
 function loadEnv(filePath) {

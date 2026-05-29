@@ -3,7 +3,6 @@
  * Recebe a mensagem, detecta intenção, busca dados do negócio e retorna resposta.
  */
 
-import type { BusinessWithRelations, Conversation } from "@zapflow/firebase";
 import {
   getBusinessForBot,
   getTenant,
@@ -16,8 +15,10 @@ import {
   createPayment,
   findConflictingAppointment,
   listCustomerAppointments,
+  getBusinessAsaasIntegration,
 } from "@zapflow/firebase";
 import {
+  APP_DISPLAY_NAME,
   detectIntent,
   isOpenNow,
   WorkingHours,
@@ -36,16 +37,13 @@ import {
   type BotMenuAction,
   PLAN_LIMITS,
 } from "@zapflow/shared";
+import { createPixCharge, resolveAsaasCredentials } from "./pix";
+import { addMinutes, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 function voc(business: { type?: string }) {
   return getBusinessVocabulary(business.type);
 }
-import {
-  getBusinessAsaasIntegration,
-} from "@zapflow/firebase";
-import { createPixCharge, resolveAsaasCredentials } from "./pix";
-import { addMinutes, format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 export interface BotContext {
   businessId: string;
@@ -467,14 +465,14 @@ async function pixGate(
 ): Promise<BotResponse[] | null> {
   if (!business.asaasConfigured) {
     const text =
-      "💳 Pagamento PIX ainda não está ativo neste negócio. O dono precisa conectar a conta Asaas em *Pagamentos* no painel ZapFlow.";
+      `💳 Pagamento PIX ainda não está ativo neste negócio. O dono precisa conectar a conta Asaas em *Pagamentos* no painel ${APP_DISPLAY_NAME}.`;
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
   const tenant = await getTenant(business.tenantId);
   if (!tenantAllowsPix(tenant?.plan)) {
     const text =
-      "💳 Cobrança PIX automática está disponível no plano *Pro* do ZapFlow. O estabelecimento pode ativar em *Meu plano*.";
+      `💳 Cobrança PIX automática está disponível no plano *Pro* do ${APP_DISPLAY_NAME}. O estabelecimento pode ativar em *Meu plano*.`;
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
@@ -606,7 +604,7 @@ async function handleFAQ(
 ): Promise<BotResponse[]> {
   if (!business.faqs?.length) {
     const text =
-      "Ainda não há perguntas no *FAQ*.\n\nCadastre no painel AtendeJa (menu FAQ) para a IA responder automaticamente.";
+      `Ainda não há perguntas no *FAQ*.\n\nCadastre no painel ${APP_DISPLAY_NAME} (menu FAQ) para a IA responder automaticamente.`;
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }

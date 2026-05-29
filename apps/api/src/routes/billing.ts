@@ -108,6 +108,17 @@ function planPriceId(plan: "STARTER" | "PRO" | "UNLIMITED"): string {
   return price;
 }
 
+function planFromPriceId(priceId: string | null | undefined): Tenant["plan"] | null {
+  if (!priceId) return null;
+  if (priceId === process.env.STRIPE_PRICE_STARTER) return "STARTER";
+  if (priceId === process.env.STRIPE_PRICE_PRO) return "PRO";
+  if (priceId === process.env.STRIPE_PRICE_UNLIMITED) return "UNLIMITED";
+  return null;
+}
+
+const ACTIVE_SUB_STATUSES = ["active", "trialing", "past_due", "unpaid"] as const;
+const SUBSCRIPTION_EXPAND = ["latest_invoice.payment_intent.latest_charge"] as const;
+
 type StripeSubWithInvoice = any;
 
 function normalizeReason(raw: string | undefined): string | undefined {
@@ -167,33 +178,112 @@ function getLatestInvoicePaymentInfo(sub: StripeSubWithInvoice): {
   };
 }
 
+function getSubscriptionBillingPeriod(sub: StripeSubWithInvoice): { start: number; end: number } | null {
+  const item = sub.items?.data?.[0];
+  const start = sub.current_period_start ?? item?.current_period_start;
+  const end = sub.current_period_end ?? item?.current_period_end;
+  if (typeof start !== "number" || typeof end !== "number") return null;
+  return { start, end };
+}
+
+async function findActiveSubscriptionForCustomer(
+  stripe: ReturnType<typeof getStripe>,
+  customerId: string,
+  subscriptionId?: string
+): Promise<StripeSubWithInvoice | null> {
+  if (subscriptionId) {
+    try {
+      const sub = await stripe.subscriptions.retrieve(subscriptionId, {
+        expand: [...SUBSCRIPTION_EXPAND],
+      });
+      if (ACTIVE_SUB_STATUSES.includes(sub.status as (typeof ACTIVE_SUB_STATUSES)[number])) {
+        return sub as StripeSubWithInvoice;
+      }
+    } catch {
+      /* tenta listar pelo customer */
+    }
+  }
+
+  const list = await stripe.subscriptions.list({
+    customer: customerId,
+    status: "all",
+    limit: 20,
+    expand: [...SUBSCRIPTION_EXPAND],
+  });
+  return (
+    (list.data.find((item) =>
+      ACTIVE_SUB_STATUSES.includes(item.status as (typeof ACTIVE_SUB_STATUSES)[number])
+    ) as StripeSubWithInvoice | undefined) ?? null
+  );
+}
+
+async function resolveStripeCustomerId(
+  stripe: ReturnType<typeof getStripe>,
+  tenant: Tenant
+): Promise<string | null> {
+  if (tenant.stripeCustomerId) return tenant.stripeCustomerId;
+  if (!tenant.email) return null;
+
+  const customers = await stripe.customers.list({ email: tenant.email, limit: 20 });
+  const byMeta = customers.data.find((c) => c.metadata?.tenantId === tenant.id);
+  if (byMeta) return byMeta.id;
+
+  for (const customer of customers.data) {
+    const subs = await stripe.subscriptions.list({ customer: customer.id, status: "all", limit: 5 });
+    const active = subs.data.find((s) =>
+      ACTIVE_SUB_STATUSES.includes(s.status as (typeof ACTIVE_SUB_STATUSES)[number])
+    );
+    if (active) return customer.id;
+  }
+
+  return customers.data[0]?.id ?? null;
+}
+
+async function reconcileTenantBilling(
+  stripe: ReturnType<typeof getStripe>,
+  tenant: Tenant
+): Promise<Tenant> {
+  const customerId = await resolveStripeCustomerId(stripe, tenant);
+  if (!customerId) return tenant;
+
+  const sub = await findActiveSubscriptionForCustomer(stripe, customerId, tenant.stripeSubscriptionId);
+  const priceId = sub?.items?.data?.[0]?.price?.id;
+  const plan = planFromPriceId(priceId);
+
+  const patch: Partial<Tenant> = {};
+  if (customerId !== tenant.stripeCustomerId) patch.stripeCustomerId = customerId;
+  if (sub?.id && sub.id !== tenant.stripeSubscriptionId) patch.stripeSubscriptionId = sub.id;
+  if (sub && priceId) patch.stripePriceId = priceId;
+  if (sub && plan) patch.plan = plan;
+
+  if (sub) {
+    const resolvedPlan = plan ?? tenant.plan;
+    const planStatus =
+      sub.status === "past_due" || sub.status === "unpaid"
+        ? "PAST_DUE"
+        : sub.status === "trialing" && resolvedPlan === "STARTER"
+          ? "TRIALING"
+          : "ACTIVE";
+    if (tenant.planStatus !== planStatus) patch.planStatus = planStatus;
+
+    const period = getSubscriptionBillingPeriod(sub);
+    if (period) patch.currentPeriodEnd = new Date(period.end * 1000).toISOString();
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return tenant.stripeCustomerId ? tenant : { ...tenant, stripeCustomerId: customerId };
+  }
+
+  const updated = await updateTenant(tenant.id, patch);
+  return updated ?? { ...tenant, ...patch };
+}
+
 async function resolveSubscription(
   stripe: ReturnType<typeof getStripe>,
   tenant: Tenant
 ): Promise<StripeSubWithInvoice | null> {
-  const expand = ["latest_invoice.payment_intent.latest_charge"] as const;
-
-  if (tenant.stripeSubscriptionId) {
-    try {
-      return (await stripe.subscriptions.retrieve(tenant.stripeSubscriptionId, {
-        expand: [...expand],
-      })) as StripeSubWithInvoice;
-    } catch {
-      /* tenta localizar pelo customer */
-    }
-  }
-
   if (!tenant.stripeCustomerId) return null;
-  const list = await stripe.subscriptions.list({
-    customer: tenant.stripeCustomerId,
-    status: "all",
-    limit: 10,
-    expand: [...expand],
-  });
-  const activeLike = list.data.find((item: any) =>
-    ["active", "trialing", "past_due", "unpaid"].includes(item.status)
-  );
-  return (activeLike as StripeSubWithInvoice | undefined) ?? null;
+  return findActiveSubscriptionForCustomer(stripe, tenant.stripeCustomerId, tenant.stripeSubscriptionId);
 }
 
 export async function billingRoutes(app: FastifyInstance) {
@@ -201,31 +291,32 @@ export async function billingRoutes(app: FastifyInstance) {
 
   app.get("/billing/cancel/preview", async (req, reply) => {
     try {
-      const tenant = await ensureBillingTenant(req);
+      const stripe = getStripe();
+      const tenant = await reconcileTenantBilling(stripe, await ensureBillingTenant(req));
       if (!tenant.stripeCustomerId) {
         return {
           canCancel: false,
-          reason: "Nenhuma assinatura ativa para cancelar.",
+          reason: "Nenhuma assinatura ativa para cancelar. Se você acabou de pagar, aguarde alguns segundos e atualize a página.",
         };
       }
 
-      const stripe = getStripe();
       const sub = await resolveSubscription(stripe, tenant);
       if (!sub) {
         return {
           canCancel: false,
-          reason: "Nenhuma assinatura ativa encontrada.",
+          reason: "Nenhuma assinatura ativa encontrada na Stripe para esta conta.",
         };
       }
 
-      if (!sub.current_period_start || !sub.current_period_end) {
+      const period = getSubscriptionBillingPeriod(sub);
+      if (!period) {
         return {
           canCancel: false,
           reason: "Ciclo de cobrança indisponível para calcular reembolso.",
         };
       }
 
-      const usage = getUsageMetrics(sub.current_period_start, sub.current_period_end);
+      const usage = getUsageMetrics(period.start, period.end);
       const payment = getLatestInvoicePaymentInfo(sub);
       const refundableRatio = usage.totalDays > 0 ? usage.remainingDays / usage.totalDays : 0;
       const refundEstimateCents = Math.max(0, Math.floor(payment.amountPaidCents * refundableRatio));
@@ -233,8 +324,8 @@ export async function billingRoutes(app: FastifyInstance) {
       return {
         canCancel: true,
         subscriptionStatus: sub.status,
-        periodStart: new Date(sub.current_period_start * 1000).toISOString(),
-        periodEnd: new Date(sub.current_period_end * 1000).toISOString(),
+        periodStart: new Date(period.start * 1000).toISOString(),
+        periodEnd: new Date(period.end * 1000).toISOString(),
         usedDays: usage.usedDays,
         totalCycleDays: usage.totalDays,
         remainingDays: usage.remainingDays,
@@ -246,6 +337,26 @@ export async function billingRoutes(app: FastifyInstance) {
           legalBasis: "EXECUCAO_CONTRATUAL",
           retentionDays: 365,
         },
+      };
+    } catch (err) {
+      return sendBillingError(req, reply, err);
+    }
+  });
+
+  app.post("/billing/sync", async (req, reply) => {
+    try {
+      const stripe = getStripe();
+      const tenant = await reconcileTenantBilling(stripe, await ensureBillingTenant(req));
+      const sub = tenant.stripeCustomerId
+        ? await resolveSubscription(stripe, tenant)
+        : null;
+      return {
+        ok: true,
+        plan: tenant.plan,
+        planStatus: tenant.planStatus,
+        stripeCustomerId: tenant.stripeCustomerId ?? null,
+        stripeSubscriptionId: tenant.stripeSubscriptionId ?? null,
+        subscriptionStatus: sub?.status ?? null,
       };
     } catch (err) {
       return sendBillingError(req, reply, err);
@@ -274,11 +385,15 @@ export async function billingRoutes(app: FastifyInstance) {
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         customer: customerId,
+        client_reference_id: tenant.id,
         line_items: [{ price: priceId, quantity: 1 }],
         success_url: `${origin}/plan?checkout=success`,
         cancel_url: `${origin}/plan?checkout=cancel`,
         allow_promotion_codes: true,
         metadata: { tenantId: tenant.id, plan, planPriceId: priceId },
+        subscription_data: {
+          metadata: { tenantId: tenant.id, plan, planPriceId: priceId },
+        },
       });
 
       if (!session.url) {
@@ -293,11 +408,11 @@ export async function billingRoutes(app: FastifyInstance) {
 
   app.post("/billing/portal", async (req, reply) => {
     try {
-      const tenant = await ensureBillingTenant(req);
+      const stripe = getStripe();
+      const tenant = await reconcileTenantBilling(stripe, await ensureBillingTenant(req));
       if (!tenant.stripeCustomerId) {
         return reply.status(400).send({ error: "Nenhum cliente Stripe vinculado. Escolha um plano primeiro." });
       }
-      const stripe = getStripe();
       const origin = resolveBillingOrigin(req);
       const portal = await stripe.billingPortal.sessions.create({
         customer: tenant.stripeCustomerId,
@@ -321,21 +436,22 @@ export async function billingRoutes(app: FastifyInstance) {
         });
       }
 
-      const tenant = await ensureBillingTenant(req);
+      const stripe = getStripe();
+      const tenant = await reconcileTenantBilling(stripe, await ensureBillingTenant(req));
       if (!tenant.stripeCustomerId) {
         return reply.status(400).send({ error: "Nenhuma assinatura ativa para cancelar." });
       }
 
-      const stripe = getStripe();
       const sub = await resolveSubscription(stripe, tenant);
       if (!sub) {
         return reply.status(400).send({ error: "Nenhuma assinatura ativa encontrada." });
       }
-      if (!sub.current_period_start || !sub.current_period_end) {
+      const period = getSubscriptionBillingPeriod(sub);
+      if (!period) {
         return reply.status(400).send({ error: "Ciclo de cobrança indisponível para cancelamento." });
       }
 
-      const usage = getUsageMetrics(sub.current_period_start, sub.current_period_end);
+      const usage = getUsageMetrics(period.start, period.end);
       const payment = getLatestInvoicePaymentInfo(sub);
       const refundableRatio = usage.totalDays > 0 ? usage.remainingDays / usage.totalDays : 0;
       const refundAmountCents = Math.max(0, Math.floor(payment.amountPaidCents * refundableRatio));

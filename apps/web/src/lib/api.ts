@@ -341,6 +341,23 @@ export const billingApi = {
         }
     );
   },
+  sync: async () => {
+    if (!hasPublicApi()) {
+      return { ok: false as const, planStatus: null, subscriptionStatus: null };
+    }
+    await authApi.sync();
+    return api.post("/billing/sync").then(
+      (r) =>
+        r.data as {
+          ok: boolean;
+          plan?: string;
+          planStatus?: string;
+          stripeCustomerId?: string | null;
+          stripeSubscriptionId?: string | null;
+          subscriptionStatus?: string | null;
+        }
+    );
+  },
 };
 
 const emptyAnalytics = {
