@@ -61,6 +61,8 @@ services:
       STRIPE_PRICE_UNLIMITED: ${STRIPE_PRICE_UNLIMITED}
       ASAAS_API_KEY: ${ASAAS_API_KEY}
       ASAAS_BASE_URL: ${ASAAS_BASE_URL}
+      ASAAS_WEBHOOK_TOKEN: ${ASAAS_WEBHOOK_TOKEN}
+      ASAAS_DEFAULT_CPF: ${ASAAS_DEFAULT_CPF}
     volumes:
       - wa_sessions:/app/sessions
       - ./.secrets:/app/.secrets:ro

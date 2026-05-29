@@ -13,6 +13,7 @@ import type {
   PaymentStatus,
   Plan,
   PlanStatus,
+  BusinessAsaasIntegration,
 } from "./types.js";
 import type { Query } from "firebase-admin/firestore";
 import { getDb, newId, nowIso } from "./admin.js";
@@ -86,6 +87,10 @@ function appointmentsCol(businessId: string) {
 
 function paymentsCol(businessId: string) {
   return businessRef(businessId).collection("payments");
+}
+
+function asaasIntegrationRef(businessId: string) {
+  return businessRef(businessId).collection("integrations").doc("asaas");
 }
 
 // ─── Tenants ─────────────────────────────────────────────────────────────────
@@ -185,14 +190,49 @@ async function resolveFaqsForBot(business: Business): Promise<FAQ[]> {
   return [];
 }
 
+export async function getBusinessAsaasIntegration(
+  businessId: string
+): Promise<BusinessAsaasIntegration | null> {
+  const snap = await asaasIntegrationRef(businessId).get();
+  if (!snap.exists) return null;
+  const data = snap.data() as BusinessAsaasIntegration;
+  if (!data.apiKey?.trim()) return null;
+  return data;
+}
+
+export async function setBusinessAsaasIntegration(
+  businessId: string,
+  data: { apiKey: string; sandbox?: boolean; webhookToken?: string }
+): Promise<BusinessAsaasIntegration> {
+  const record: BusinessAsaasIntegration = {
+    apiKey: data.apiKey.trim(),
+    sandbox: data.sandbox === true,
+    updatedAt: nowIso(),
+  };
+  const token = data.webhookToken?.trim();
+  if (token) record.webhookToken = token;
+  await asaasIntegrationRef(businessId).set(record);
+  return record;
+}
+
+export async function deleteBusinessAsaasIntegration(businessId: string): Promise<void> {
+  await asaasIntegrationRef(businessId).delete();
+}
+
 export async function getBusinessForBot(id: string): Promise<BusinessWithRelations | null> {
   const business = await getBusiness(id);
   if (!business) return null;
-  const [catalog, faqs] = await Promise.all([
+  const [catalog, faqs, asaas] = await Promise.all([
     resolveCatalogForBot(business),
     resolveFaqsForBot(business),
+    getBusinessAsaasIntegration(id),
   ]);
-  return { ...business, catalog, faqs };
+  return {
+    ...business,
+    catalog,
+    faqs,
+    asaasConfigured: Boolean(asaas?.apiKey),
+  };
 }
 
 export async function createBusiness(
@@ -537,16 +577,40 @@ export async function createPayment(
   return payment;
 }
 
+export async function getPaymentsByAsaasId(asaasId: string): Promise<Payment[]> {
+  const snap = await getDb().collectionGroup("payments").where("asaasId", "==", asaasId).get();
+  return snap.docs.map((d) => {
+    const businessId = d.ref.parent.parent!.id;
+    return { id: d.id, businessId, ...d.data() } as Payment;
+  });
+}
+
 export async function updatePaymentsByAsaasId(
   asaasId: string,
   data: Partial<Payment>
-): Promise<void> {
+): Promise<Payment[]> {
   const snap = await getDb().collectionGroup("payments").where("asaasId", "==", asaasId).get();
+  if (snap.empty) return [];
+
   const batch = getDb().batch();
+  const updated: Payment[] = [];
+  const ts = nowIso();
+
   for (const doc of snap.docs) {
-    batch.update(doc.ref, { ...data, updatedAt: nowIso() });
+    const businessId = doc.ref.parent.parent!.id;
+    const current = { id: doc.id, businessId, ...doc.data() } as Payment;
+    const patch = { ...data, updatedAt: ts };
+    batch.update(doc.ref, patch);
+    updated.push({ ...current, ...patch } as Payment);
   }
+
   await batch.commit();
+  return updated;
+}
+
+export async function listPayments(businessId: string, limit = 50): Promise<Payment[]> {
+  const snap = await paymentsCol(businessId).orderBy("createdAt", "desc").limit(limit).get();
+  return snap.docs.map((d) => ({ id: d.id, businessId, ...d.data() }) as Payment);
 }
 
 // ─── Analytics ─────────────────────────────────────────────────────────────

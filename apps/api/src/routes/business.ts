@@ -15,6 +15,7 @@ import {
   createFaq,
   updateFaq,
   deleteFaq,
+  listPayments,
 } from "@zapflow/firebase";
 import { PLAN_LIMITS } from "@zapflow/shared";
 import { requireAuth } from "../middleware/auth";
@@ -149,5 +150,11 @@ export async function businessRoutes(app: FastifyInstance) {
     if (!(await getBusiness(businessId, req.tenantId))) return reply.status(404).send({ error: "Not found" });
     await deleteFaq(businessId, faqId);
     return reply.status(204).send();
+  });
+
+  app.get("/businesses/:id/payments", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await getBusiness(id, req.tenantId))) return reply.status(404).send({ error: "Not found" });
+    return listPayments(id);
   });
 }

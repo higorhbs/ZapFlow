@@ -1,6 +1,14 @@
 import { FastifyInstance } from "fastify";
 import Stripe from "stripe";
-import { getTenantByStripeCustomerId, updatePaymentsByAsaasId, updateTenant } from "@zapflow/firebase";
+import {
+  getTenantByStripeCustomerId,
+  getBusinessAsaasIntegration,
+  getPaymentsByAsaasId,
+  updatePaymentsByAsaasId,
+  updateTenant,
+} from "@zapflow/firebase";
+import { optionalEnv } from "../env";
+import { notifyPaymentReceived } from "../services/payment-notify";
 
 function planFromPriceId(priceId: string | null | undefined): "STARTER" | "PRO" | "UNLIMITED" | null {
   if (!priceId) return null;
@@ -14,13 +22,41 @@ export async function webhookRoutes(app: FastifyInstance) {
   app.post("/webhooks/asaas", async (req, reply) => {
     const event = req.body as { event?: string; payment?: { id?: string } };
     const { event: eventType, payment } = event;
+    const header = req.headers["asaas-access-token"];
+    const globalToken = optionalEnv("ASAAS_WEBHOOK_TOKEN");
+
+    if (payment?.id) {
+      const linked = await getPaymentsByAsaasId(payment.id);
+      const businessId = linked[0]?.businessId;
+      if (businessId) {
+        const integration = await getBusinessAsaasIntegration(businessId);
+        if (integration?.webhookToken) {
+          if (header !== integration.webhookToken) {
+            return reply.status(401).send({ error: "Token do webhook inválido para este negócio" });
+          }
+        } else if (globalToken && header !== globalToken) {
+          return reply.status(401).send({ error: "Token do webhook Asaas inválido" });
+        }
+      } else if (globalToken && header !== globalToken) {
+        return reply.status(401).send({ error: "Token do webhook Asaas inválido" });
+      }
+    } else if (globalToken && header !== globalToken) {
+      return reply.status(401).send({ error: "Token do webhook Asaas inválido" });
+    }
 
     if (!payment?.id) {
       return reply.status(200).send({ received: true });
     }
 
     if (eventType === "PAYMENT_RECEIVED" || eventType === "PAYMENT_CONFIRMED") {
-      await updatePaymentsByAsaasId(payment.id, { status: "PAID", paidAt: new Date().toISOString() });
+      const before = await getPaymentsByAsaasId(payment.id);
+      const paidAt = new Date().toISOString();
+      await updatePaymentsByAsaasId(payment.id, { status: "PAID", paidAt });
+      for (const p of before) {
+        if (p.status !== "PAID") {
+          await notifyPaymentReceived({ ...p, status: "PAID", paidAt });
+        }
+      }
     }
 
     if (eventType === "PAYMENT_OVERDUE") {

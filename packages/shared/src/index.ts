@@ -244,9 +244,9 @@ export function planMarketingFeatures(plan: PlanTier): string[] {
 }
 
 export const PLAN_PRICES = {
-  STARTER: { brl: 97, label: "Starter" },
-  PRO: { brl: 197, label: "Pro" },
-  UNLIMITED: { brl: 397, label: "Unlimited" },
+  STARTER: { brl: 49, label: "Starter" },
+  PRO: { brl: 99, label: "Pro" },
+  UNLIMITED: { brl: 199, label: "Unlimited" },
 } as const;
 
 export * from "./bot-menu.js";

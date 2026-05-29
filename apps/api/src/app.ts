@@ -53,6 +53,11 @@ export async function buildApp(): Promise<FastifyInstance> {
     adminConfigured: hasAdminCredential(),
     projectId: process.env.FIREBASE_PROJECT_ID ?? null,
   }));
+  app.get("/health/payments", () => ({
+    asaasConfigured: Boolean(
+      process.env.ASAAS_API_KEY?.trim() && process.env.ASAAS_BASE_URL?.trim()
+    ),
+  }));
 
   await app.register(authRoutes);
   await app.register(businessRoutes);
@@ -60,6 +65,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(appointmentRoutes);
   await app.register(analyticsRoutes);
   await app.register(billingRoutes);
+  const { asaasIntegrationRoutes } = await import("./routes/asaas-integration.js");
+  await app.register(asaasIntegrationRoutes);
   await app.register(privacyRoutes);
   await app.register(webhookRoutes);
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tenantApi, businessApi, billingApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
@@ -7,7 +8,7 @@ import { PLAN_LABELS, PLAN_STATUS_LABELS, cn, formatCurrency } from "@/lib/utils
 import { PLAN_LIMITS, PLAN_PRICES, planMarketingFeatures, formatPlanLimit } from "@zapflow/shared";
 import type { Plan } from "@zapflow/firebase/client";
 import { toast } from "sonner";
-import { Check, Crown, Loader2, Sparkles, Zap, ArrowRight, CalendarDays, BookOpen, CreditCard } from "lucide-react";
+import { Check, Crown, Loader2, Sparkles, Zap, ArrowRight, CalendarDays, BookOpen, CreditCard, ShieldCheck, AlertTriangle } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,8 @@ const PLAN_ICON_BG: Record<Plan, string> = {
 export default function PlanPage() {
   const { uid, ready } = useAuth();
   const queryClient = useQueryClient();
+  const [cancelReason, setCancelReason] = useState("");
+  const [lgpdConsent, setLgpdConsent] = useState(false);
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["tenant", uid],
@@ -45,6 +48,12 @@ export default function PlanPage() {
     queryKey: ["businesses", uid],
     queryFn: businessApi.list,
     enabled: ready && !!uid,
+  });
+
+  const { data: cancellationPreview, isLoading: previewLoading } = useQuery({
+    queryKey: ["billing-cancel-preview", uid],
+    queryFn: () => billingApi.cancellationPreview(),
+    enabled: ready && !!uid && !!tenant?.stripeCustomerId && tenant?.planStatus !== "CANCELED",
   });
 
   const selectPlan = useMutation({
@@ -66,6 +75,26 @@ export default function PlanPage() {
     onError: (err: Error) => toast.error(err.message ?? "Erro ao abrir portal Stripe"),
   });
 
+  const cancelPlan = useMutation({
+    mutationFn: () =>
+      billingApi.cancelPlan({
+        reason: cancelReason.trim() || undefined,
+        lgpdConsent,
+      }),
+    onSuccess: async (res) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["tenant", uid] }),
+        queryClient.invalidateQueries({ queryKey: ["billing-cancel-preview", uid] }),
+      ]);
+      setCancelReason("");
+      setLgpdConsent(false);
+      toast.success(
+        `Plano cancelado. Uso no ciclo: ${res.usedDays}/${res.totalCycleDays} dias. Reembolso: ${formatCurrency(res.refundAmountBrl)}.`
+      );
+    },
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao cancelar plano"),
+  });
+
   if (isLoading || !tenant) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -78,6 +107,7 @@ export default function PlanPage() {
   const trialDaysLeft = differenceInDays(new Date(tenant.trialEndsAt), new Date());
   const inTrial = tenant.planStatus === "TRIALING" && trialDaysLeft >= 0;
   const limits = PLAN_LIMITS[tenant.plan];
+  const canSubmitCancel = Boolean(cancellationPreview?.canCancel && lgpdConsent && !cancelPlan.isPending);
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -149,6 +179,118 @@ export default function PlanPage() {
           {openPortal.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
           Gerenciar cobrança
         </Button>
+      </div>
+
+      <div className="mb-8 rounded-2xl border border-red-200 bg-red-50/50 p-5">
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg bg-red-100 p-2 text-red-700">
+            <AlertTriangle className="w-4 h-4" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-base font-semibold text-gray-900">Cancelamento de plano e reembolso</h3>
+            <p className="text-sm text-gray-600 mt-1">
+              O reembolso é calculado proporcionalmente aos dias não utilizados no ciclo atual.
+            </p>
+
+            {tenant.planStatus === "CANCELED" ? (
+              <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700">
+                <p>
+                  Assinatura já cancelada em{" "}
+                  {tenant.canceledAt
+                    ? format(new Date(tenant.canceledAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                    : "data indisponível"}
+                  .
+                </p>
+                <p className="mt-1">
+                  Último ciclo apurado: {tenant.cancellationUsageDays ?? 0}/{tenant.cancellationCycleDays ?? 0} dias usados.
+                </p>
+                <p className="mt-1">
+                  Reembolso processado: {formatCurrency(((tenant.cancellationRefundAmount ?? 0) / 100).toFixed(2))}.
+                </p>
+              </div>
+            ) : previewLoading ? (
+              <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
+                <Loader2 className="w-4 h-4 animate-spin" /> Carregando prévia de cancelamento...
+              </div>
+            ) : !cancellationPreview?.canCancel ? (
+              <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700">
+                {cancellationPreview?.reason ?? "Nenhuma assinatura ativa encontrada para cancelamento."}
+              </div>
+            ) : (
+              <>
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="rounded-xl border border-gray-200 bg-white p-3">
+                    <p className="text-xs text-gray-500">Dias usados</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {cancellationPreview.usedDays}/{cancellationPreview.totalCycleDays}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-gray-200 bg-white p-3">
+                    <p className="text-xs text-gray-500">Dias restantes</p>
+                    <p className="text-lg font-bold text-gray-900">{cancellationPreview.remainingDays}</p>
+                  </div>
+                  <div className="rounded-xl border border-gray-200 bg-white p-3">
+                    <p className="text-xs text-gray-500">Reembolso estimado</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {formatCurrency((cancellationPreview.refundEstimateBrl ?? 0).toFixed(2))}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500 mt-3">
+                  Ciclo: {cancellationPreview.periodStart ? format(new Date(cancellationPreview.periodStart), "dd/MM/yyyy", { locale: ptBR }) : "-"}
+                  {" "}até{" "}
+                  {cancellationPreview.periodEnd ? format(new Date(cancellationPreview.periodEnd), "dd/MM/yyyy", { locale: ptBR }) : "-"}.
+                </p>
+
+                <label className="block mt-4 text-sm font-medium text-gray-800">Motivo do cancelamento (opcional)</label>
+                <textarea
+                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  rows={3}
+                  maxLength={500}
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Conte o motivo para ajudarmos a melhorar o produto"
+                />
+
+                <label className="mt-4 flex items-start gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 rounded border-gray-300"
+                    checked={lgpdConsent}
+                    onChange={(e) => setLgpdConsent(e.target.checked)}
+                  />
+                  <span>
+                    Confirmo o cancelamento e autorizo o tratamento mínimo dos dados para execução contratual e
+                    auditoria LGPD por {cancellationPreview.lgpd?.retentionDays ?? 365} dias.
+                  </span>
+                </label>
+
+                <div className="mt-3 inline-flex items-center gap-1 text-xs text-gray-500">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Base legal: {cancellationPreview.lgpd?.legalBasis ?? "EXECUCAO_CONTRATUAL"}.
+                </div>
+
+                <div className="mt-4">
+                  <Button
+                    type="button"
+                    variant="destructiveSolid"
+                    disabled={!canSubmitCancel}
+                    onClick={() => {
+                      const confirmed = window.confirm(
+                        "Deseja cancelar agora? O reembolso proporcional será solicitado imediatamente."
+                      );
+                      if (confirmed) cancelPlan.mutate();
+                    }}
+                  >
+                    {cancelPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    Cancelar plano e solicitar reembolso
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Plans comparison */}

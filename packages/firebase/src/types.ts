@@ -16,6 +16,14 @@ export interface Tenant {
   stripeSubscriptionId?: string;
   stripePriceId?: string;
   currentPeriodEnd?: string;
+  canceledAt?: string;
+  cancellationReason?: string;
+  cancellationUsageDays?: number;
+  cancellationCycleDays?: number;
+  cancellationRefundAmount?: number;
+  cancellationRefundCurrency?: string;
+  cancellationRefundId?: string;
+  cancellationRefundStatus?: string;
   onboardingCompletedAt?: string;
   lgpdAcceptedAt?: string;
   lgpdPolicyVersion?: string;
@@ -31,7 +39,7 @@ export interface BotMenuItemConfig {
   enabled: boolean;
   emoji?: string;
   /** Legado — ignorado em menus novos; usado só para migrar dados antigos */
-  action?: "APPOINTMENT" | "CATALOG" | "FAQ" | "HUMAN";
+  action?: "APPOINTMENT" | "CATALOG" | "FAQ" | "PAYMENT" | "HUMAN";
 }
 
 export interface Business {
@@ -132,7 +140,16 @@ export interface Payment {
   updatedAt: string;
 }
 
+export interface BusinessAsaasIntegration {
+  apiKey: string;
+  sandbox: boolean;
+  webhookToken?: string;
+  updatedAt: string;
+}
+
 export interface BusinessWithRelations extends Business {
   catalog: CatalogItem[];
   faqs: FAQ[];
+  /** Preenchido só no servidor (bot); nunca expor ao client web */
+  asaasConfigured?: boolean;
 }

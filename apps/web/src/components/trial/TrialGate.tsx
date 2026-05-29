@@ -1,7 +1,7 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { tenantApi } from "@/lib/api";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { tenantApi, billingApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { PLAN_LABELS, formatCurrency } from "@/lib/utils";
 import { PLAN_PRICES, planMarketingFeatures } from "@zapflow/shared";
@@ -87,7 +87,6 @@ function PlanCard({
 
 export function TrialGate() {
   const { uid, ready } = useAuth();
-  const queryClient = useQueryClient();
   const [selectingPlan, setSelectingPlan] = useState<Plan | null>(null);
 
   const { data: tenant } = useQuery({
@@ -98,15 +97,15 @@ export function TrialGate() {
   });
 
   const selectPlan = useMutation({
-    mutationFn: (plan: Plan) => tenantApi.updatePlan(plan),
-    onMutate: (plan) => setSelectingPlan(plan),
-    onSuccess: (_, plan) => {
-      queryClient.invalidateQueries({ queryKey: ["tenant", uid] });
-      toast.success(`Plano ${PLAN_LABELS[plan]} ativado! Bem-vindo(a) 🎉`);
-      setSelectingPlan(null);
+    mutationFn: async (plan: Plan) => {
+      const res = await billingApi.checkout(plan);
+      if (!res?.url) throw new Error("Não foi possível iniciar checkout Stripe.");
+      window.location.href = res.url;
+      return plan;
     },
+    onMutate: (plan) => setSelectingPlan(plan),
     onError: (err: Error) => {
-      toast.error(err.message ?? "Erro ao ativar plano");
+      toast.error(err.message ?? "Erro ao iniciar checkout");
       setSelectingPlan(null);
     },
   });
@@ -204,7 +203,7 @@ export function TrialGate() {
 
             {/* Footer note */}
             <p className="text-center text-xs text-white/70">
-              A cobrança por cartão será integrada em breve. A troca é imediata na sua conta.
+              Pagamento seguro via Stripe. Após confirmar, o acesso é liberado automaticamente.
             </p>
           </div>
         </div>

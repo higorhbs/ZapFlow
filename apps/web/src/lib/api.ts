@@ -35,8 +35,15 @@ function isLocalDevHost() {
 function resolveApiBaseUrl() {
   const url = process.env.NEXT_PUBLIC_API_URL?.trim();
   if (url) return url;
-  if (isLocalDevHost()) return "http://localhost:3001";
+  if (typeof window !== "undefined" && isLocalDevHost()) return "http://localhost:3001";
+  if (typeof window === "undefined") return process.env.NEXT_PUBLIC_API_URL?.trim() || "http://127.0.0.1:3001";
   throw new Error("NEXT_PUBLIC_API_URL não configurada.");
+}
+
+let apiBaseUrl: string | undefined;
+function getApiBaseUrl() {
+  if (!apiBaseUrl) apiBaseUrl = resolveApiBaseUrl();
+  return apiBaseUrl;
 }
 
 function hasPublicApi() {
@@ -56,8 +63,7 @@ function getStripePortalLink() {
   return process.env.NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL?.trim() ?? "";
 }
 
-const api = axios.create({
-  baseURL: resolveApiBaseUrl(),
+export const api = axios.create({
   timeout: 90_000,
 });
 
@@ -77,6 +83,7 @@ async function ensureTenantRecord() {
 }
 
 api.interceptors.request.use(async (config) => {
+  if (!config.baseURL) config.baseURL = getApiBaseUrl();
   const user = getClientAuth().currentUser;
   if (!user) return config;
   const token = await user.getIdToken(false);
@@ -131,6 +138,8 @@ api.interceptors.response.use(
       }
     } else if (status === 401) {
       err.message = "Sessão inválida. Entre de novo.";
+    } else if (status === 500 && err.message === "Request failed with status code 500") {
+      err.message = "Erro no servidor ao processar cobrança. Tente novamente.";
     }
     return Promise.reject(err);
   }
@@ -261,25 +270,76 @@ export const appointmentApi = {
 };
 
 export const billingApi = {
-  checkout: (plan: "STARTER" | "PRO" | "UNLIMITED") => {
+  checkout: async (plan: "STARTER" | "PRO" | "UNLIMITED") => {
     const directLink = getStripePaymentLink(plan);
     if (directLink) {
-      return Promise.resolve({ url: directLink });
+      return { url: directLink };
     }
     if (!hasPublicApi()) {
       throw new Error(`Link Stripe do plano ${plan} não configurado.`);
     }
+    await authApi.sync();
     return api.post("/billing/checkout", { plan }).then((r) => r.data as { url?: string });
   },
-  portal: () => {
+  portal: async () => {
     const portalLink = getStripePortalLink();
     if (portalLink) {
-      return Promise.resolve({ url: portalLink });
+      return { url: portalLink };
     }
     if (!hasPublicApi()) {
       throw new Error("Portal Stripe não configurado.");
     }
+    await authApi.sync();
     return api.post("/billing/portal").then((r) => r.data as { url?: string });
+  },
+  cancellationPreview: async () => {
+    if (!hasPublicApi()) {
+      return {
+        canCancel: false,
+        reason: "API de cobrança indisponível no ambiente atual.",
+      };
+    }
+    await authApi.sync();
+    return api.get("/billing/cancel/preview").then(
+      (r) =>
+        r.data as {
+          canCancel: boolean;
+          reason?: string;
+          subscriptionStatus?: string;
+          periodStart?: string;
+          periodEnd?: string;
+          usedDays?: number;
+          totalCycleDays?: number;
+          remainingDays?: number;
+          refundEstimateCents?: number;
+          refundEstimateBrl?: number;
+          currency?: string;
+          lgpd?: {
+            requiresConsent: boolean;
+            legalBasis: string;
+            retentionDays: number;
+          };
+        }
+    );
+  },
+  cancelPlan: async (data: { reason?: string; lgpdConsent: boolean }) => {
+    if (!hasPublicApi()) {
+      throw new Error("API de cobrança indisponível no ambiente atual.");
+    }
+    await authApi.sync();
+    return api.post("/billing/cancel", data).then(
+      (r) =>
+        r.data as {
+          ok: boolean;
+          canceledAt: string;
+          usedDays: number;
+          totalCycleDays: number;
+          refundAmountCents: number;
+          refundAmountBrl: number;
+          refundId: string | null;
+          refundStatus: string;
+        }
+    );
   },
 };
 
@@ -295,6 +355,22 @@ export const analyticsApi = {
       .get(`/businesses/${businessId}/analytics`)
       .then((r) => r.data)
       .catch(() => emptyAnalytics),
+};
+
+export const paymentApi = {
+  list: (businessId: string) =>
+    api.get(`/businesses/${businessId}/payments`).then((r) => r.data),
+};
+
+export const asaasApi = {
+  get: (businessId: string) =>
+    api.get(`/businesses/${businessId}/integrations/asaas`).then((r) => r.data),
+  save: (
+    businessId: string,
+    data: { apiKey?: string; sandbox?: boolean; webhookToken?: string }
+  ) => api.put(`/businesses/${businessId}/integrations/asaas`, data).then((r) => r.data),
+  remove: (businessId: string) =>
+    api.delete(`/businesses/${businessId}/integrations/asaas`),
 };
 
 export const privacyApi = {

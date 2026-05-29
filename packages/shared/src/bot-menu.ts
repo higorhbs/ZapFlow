@@ -1,6 +1,6 @@
 import { getBusinessVocabulary } from "./business-vocabulary.js";
 
-export type BotMenuAction = "APPOINTMENT" | "CATALOG" | "FAQ" | "HUMAN" | "EXIT";
+export type BotMenuAction = "APPOINTMENT" | "CATALOG" | "FAQ" | "PAYMENT" | "HUMAN" | "EXIT";
 
 export interface BotMenuEntry {
   num: number;
@@ -13,6 +13,7 @@ export function buildBotMenuEntries(businessType?: string | null): BotMenuEntry[
   const entries: Omit<BotMenuEntry, "num">[] = [
     { action: "APPOINTMENT", label: v.botBookingMenuLabel },
     { action: "CATALOG", label: v.botCatalogMenuLabel },
+    { action: "PAYMENT", label: "Pagar com PIX" },
     { action: "FAQ", label: "Dúvidas" },
     { action: "HUMAN", label: "Falar com atendente" },
   ];

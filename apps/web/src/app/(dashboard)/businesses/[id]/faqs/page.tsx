@@ -21,6 +21,7 @@ import { buildBotMenuEntries, getBusinessVocabulary } from "@zapflow/shared";
 const LEGACY_EMOJI: Record<string, string> = {
   APPOINTMENT: "📅",
   CATALOG: "🛍️",
+  PAYMENT: "💳",
   FAQ: "❓",
   HUMAN: "👤",
 };
@@ -30,6 +31,7 @@ function legacyMenuResponse(type: string | undefined, action: string): string {
   const map: Record<string, string> = {
     APPOINTMENT: v.botLegacyAppointmentHint,
     CATALOG: v.botLegacyCatalogHint,
+    PAYMENT: "Qual o valor? (ex: *50* ou *150,00*)",
     FAQ: "Envie sua dúvida em texto ou digite *dúvida* para ver as perguntas frequentes.",
     HUMAN: "Certo! Vou chamar um atendente. Aguarde um momento... 👤",
   };

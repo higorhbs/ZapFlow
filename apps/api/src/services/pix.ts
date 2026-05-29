@@ -1,14 +1,64 @@
-import axios from "axios";
-import { requireEnv } from "../env";
+import axios, { type AxiosInstance } from "axios";
+import { optionalEnv } from "../env";
 
-function asaasClient() {
+export type AsaasCredentials = {
+  apiKey: string;
+  baseUrl: string;
+};
+
+const SANDBOX_URL = "https://sandbox.asaas.com/api/v3";
+const PRODUCTION_URL = "https://api.asaas.com/api/v3";
+
+export function asaasBaseUrl(sandbox: boolean): string {
+  if (sandbox) return SANDBOX_URL;
+  return optionalEnv("ASAAS_BASE_URL") ?? PRODUCTION_URL;
+}
+
+export function isPlatformAsaasConfigured(): boolean {
+  return Boolean(optionalEnv("ASAAS_API_KEY"));
+}
+
+export function resolveAsaasCredentials(integration?: {
+  apiKey?: string;
+  sandbox?: boolean;
+} | null): AsaasCredentials | null {
+  if (integration?.apiKey?.trim()) {
+    return {
+      apiKey: integration.apiKey.trim(),
+      baseUrl: asaasBaseUrl(integration.sandbox === true),
+    };
+  }
+  const platformKey = optionalEnv("ASAAS_API_KEY");
+  if (!platformKey) return null;
+  const baseUrl = optionalEnv("ASAAS_BASE_URL") ?? PRODUCTION_URL;
+  return { apiKey: platformKey, baseUrl };
+}
+
+export function isAsaasConfigured(integration?: { apiKey?: string } | null): boolean {
+  return resolveAsaasCredentials(integration) !== null;
+}
+
+function asaasClient(creds: AsaasCredentials): AxiosInstance {
   return axios.create({
-    baseURL: requireEnv("ASAAS_BASE_URL"),
+    baseURL: creds.baseUrl,
     headers: {
-      access_token: requireEnv("ASAAS_API_KEY"),
+      access_token: creds.apiKey,
       "Content-Type": "application/json",
     },
   });
+}
+
+function normalizeBrPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 10 || digits.length === 11) return digits;
+  if ((digits.length === 12 || digits.length === 13) && digits.startsWith("55")) {
+    return digits.slice(2);
+  }
+  return digits;
+}
+
+function defaultCpfCnpj(): string {
+  return optionalEnv("ASAAS_DEFAULT_CPF") ?? "24971563792";
 }
 
 export interface PixChargeInput {
@@ -16,7 +66,7 @@ export interface PixChargeInput {
   customerPhone: string;
   description: string;
   amount: number;
-  dueDate?: string; // YYYY-MM-DD
+  dueDate?: string;
   externalRef?: string;
 }
 
@@ -28,37 +78,31 @@ export interface PixChargeResult {
   status: string;
 }
 
-export async function createPixCharge(input: PixChargeInput): Promise<PixChargeResult> {
-  // 1. Cria ou busca cliente na Asaas
-  const cpfCnpj = "00000000000"; // MVP: sem CPF real, use o do cliente depois
+export async function createPixCharge(
+  input: PixChargeInput,
+  creds: AsaasCredentials
+): Promise<PixChargeResult> {
+  const client = asaasClient(creds);
+  const mobilePhone = normalizeBrPhone(input.customerPhone);
+  const cpfCnpj = defaultCpfCnpj();
   let customerId: string;
 
-  try {
-    const existing = await asaasClient().get(`/customers?mobilePhone=${input.customerPhone.replace(/\D/g, "")}`);
-    if (existing.data.data?.length > 0) {
-      customerId = existing.data.data[0].id;
-    } else {
-      const created = await asaasClient().post("/customers", {
-        name: input.customerName,
-        mobilePhone: input.customerPhone.replace(/\D/g, ""),
-        cpfCnpj,
-      });
-      customerId = created.data.id;
-    }
-  } catch {
-    // fallback: cria sem validação
-    const created = await asaasClient().post("/customers", {
+  const existing = await client.get("/customers", { params: { mobilePhone } });
+  if (existing.data.data?.length > 0) {
+    customerId = existing.data.data[0].id;
+  } else {
+    const created = await client.post("/customers", {
       name: input.customerName,
-      mobilePhone: input.customerPhone.replace(/\D/g, ""),
+      mobilePhone,
       cpfCnpj,
     });
     customerId = created.data.id;
   }
 
-  // 2. Cria cobrança PIX
-  const dueDate = input.dueDate ?? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const dueDate =
+    input.dueDate ?? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-  const charge = await asaasClient().post("/payments", {
+  const charge = await client.post("/payments", {
     customer: customerId,
     billingType: "PIX",
     value: input.amount,
@@ -67,21 +111,19 @@ export async function createPixCharge(input: PixChargeInput): Promise<PixChargeR
     externalReference: input.externalRef,
   });
 
-  const chargeId = charge.data.id;
-
-  // 3. Busca QR Code
-  const qrRes = await asaasClient().get(`/payments/${chargeId}/pixQrCode`);
+  const chargeId = charge.data.id as string;
+  const qrRes = await client.get(`/payments/${chargeId}/pixQrCode`);
 
   return {
     asaasId: chargeId,
-    pixQrCode: qrRes.data.encodedImage,     // base64
-    pixCopyPaste: qrRes.data.payload,        // copia e cola
+    pixQrCode: qrRes.data.encodedImage,
+    pixCopyPaste: qrRes.data.payload,
     amount: input.amount,
     status: charge.data.status,
   };
 }
 
-export async function checkPixStatus(asaasId: string): Promise<string> {
-  const res = await asaasClient().get(`/payments/${asaasId}`);
-  return res.data.status; // PENDING | RECEIVED | OVERDUE | REFUNDED
+export async function checkPixStatus(asaasId: string, creds: AsaasCredentials): Promise<string> {
+  const res = await asaasClient(creds).get(`/payments/${asaasId}`);
+  return res.data.status;
 }

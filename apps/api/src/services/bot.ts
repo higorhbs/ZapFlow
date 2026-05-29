@@ -40,7 +40,10 @@ import {
 function voc(business: { type?: string }) {
   return getBusinessVocabulary(business.type);
 }
-import { createPixCharge } from "./pix";
+import {
+  getBusinessAsaasIntegration,
+} from "@zapflow/firebase";
+import { createPixCharge, resolveAsaasCredentials } from "./pix";
 import { addMinutes, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -156,6 +159,13 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     return handleAppointmentTime(ctx, business, conversation, state, sessionKey);
   }
   if (state?.step === "PAYMENT_AMOUNT") {
+    if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
+      conversationState.delete(sessionKey);
+      if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
+      const menu = buildMainMenu(business);
+      await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
+      return [{ text: menu }];
+    }
     return handlePaymentAmount(ctx, business, conversation, state, sessionKey);
   }
   if (state?.step === "FAQ_SELECT") {
@@ -213,11 +223,7 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
       return handleQuote(business, conversation);
 
     case "PAYMENT":
-      conversationState.set(sessionKey, {
-        step: "PAYMENT_AMOUNT",
-        data: { customerName: customerName ?? "Cliente" },
-      });
-      return handlePaymentStart(conversation);
+      return startPaymentFlow(ctx, business, conversation, sessionKey);
 
     case "FAQ":
       return handleFAQ(messageBody, business, conversation, sessionKey);
@@ -451,8 +457,47 @@ async function handleMyAppointments(
   return [{ text }];
 }
 
+function tenantAllowsPix(plan?: string): boolean {
+  return plan === "PRO" || plan === "UNLIMITED";
+}
+
+async function pixGate(
+  business: { id: string; tenantId: string; asaasConfigured?: boolean },
+  conversation: Conversation
+): Promise<BotResponse[] | null> {
+  if (!business.asaasConfigured) {
+    const text =
+      "💳 Pagamento PIX ainda não está ativo neste negócio. O dono precisa conectar a conta Asaas em *Pagamentos* no painel ZapFlow.";
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+  const tenant = await getTenant(business.tenantId);
+  if (!tenantAllowsPix(tenant?.plan)) {
+    const text =
+      "💳 Cobrança PIX automática está disponível no plano *Pro* do ZapFlow. O estabelecimento pode ativar em *Meu plano*.";
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+  return null;
+}
+
+async function startPaymentFlow(
+  ctx: BotContext,
+  business: { id: string; tenantId: string },
+  conversation: Conversation,
+  sessionKey: string
+): Promise<BotResponse[]> {
+  const blocked = await pixGate(business, conversation);
+  if (blocked) return blocked;
+  conversationState.set(sessionKey, {
+    step: "PAYMENT_AMOUNT",
+    data: { customerName: ctx.customerName ?? "Cliente" },
+  });
+  return handlePaymentStart(conversation);
+}
+
 async function handlePaymentStart(conversation: Conversation): Promise<BotResponse[]> {
-  const text = "💰 *Cobrança via PIX*\n\nQual o valor do sinal? (ex: *50* ou *150,00*)";
+  const text = "💰 *Cobrança via PIX*\n\nQual o valor? (ex: *50* ou *150,00*)";
   await saveAndReturn(conversation.businessId, conversation.id, [{ text }]);
   return [{ text }];
 }
@@ -479,13 +524,22 @@ async function handlePaymentAmount(
   let responses: BotResponse[];
 
   try {
-    const pix = await createPixCharge({
-      customerName: state.data.customerName ?? ctx.customerName ?? "Cliente",
-      customerPhone: ctx.customerPhone,
-      description: `Sinal - ${business.name}`,
-      amount,
-      externalRef: conversation.id,
-    });
+    const integration = await getBusinessAsaasIntegration(business.id);
+    const creds = resolveAsaasCredentials(integration);
+    if (!creds) {
+      throw new Error("Conta Asaas não conectada. Configure em Pagamentos no painel.");
+    }
+
+    const pix = await createPixCharge(
+      {
+        customerName: state.data.customerName ?? ctx.customerName ?? "Cliente",
+        customerPhone: ctx.customerPhone,
+        description: `Sinal - ${business.name}`,
+        amount,
+        externalRef: conversation.id,
+      },
+      creds
+    );
 
     await createPayment({
       businessId: business.id,
@@ -509,11 +563,11 @@ async function handlePaymentAmount(
 
     responses = [{ text, imageUrl: `data:image/png;base64,${pix.pixQrCode}` }];
   } catch (err) {
-    // Fallback: sem Asaas configurado, só informa
+    const reason = err instanceof Error ? err.message : "Erro ao gerar PIX.";
     const text =
-      `💳 *Cobrança de ${formatCurrency(amount)}*\n\n` +
-      `Para processar o PIX, configure sua chave Asaas nas configurações do sistema.\n\n` +
-      `[Modo demonstração ativo]`;
+      `❌ Não foi possível gerar o PIX de *${formatCurrency(amount)}*.\n\n` +
+      `${reason}\n\n` +
+      `Tente novamente ou digite *menu*.`;
     responses = [{ text }];
   }
 
@@ -612,17 +666,44 @@ type MenuPick = {
   action?: BotMenuAction;
 };
 
-function getEnabledMenuEntries(business?: { botMenu?: unknown[]; type?: string }): MenuPick[] {
+function getEnabledMenuEntries(business?: {
+  botMenu?: unknown[];
+  type?: string;
+  asaasConfigured?: boolean;
+}): MenuPick[] {
+  let entries: MenuPick[];
   if (business?.botMenu && Array.isArray(business.botMenu) && business.botMenu.length > 0) {
-    return (business.botMenu as MenuPick[]).filter((e) => e.enabled !== false);
+    entries = (business.botMenu as MenuPick[]).filter((e) => e.enabled !== false);
+  } else {
+    entries = buildBotMenuEntries(business?.type).map((e) => ({
+      num: e.num,
+      label: e.label,
+      response: legacyMenuResponse(e.action, business?.type),
+      action: e.action,
+      enabled: true,
+    }));
   }
-  return buildBotMenuEntries(business?.type).map((e) => ({
-    num: e.num,
-    label: e.label,
-    response: legacyMenuResponse(e.action, business?.type),
-    action: e.action,
-    enabled: true,
-  }));
+  return ensurePixMenuEntry(entries, business?.asaasConfigured);
+}
+
+function ensurePixMenuEntry(entries: MenuPick[], asaasConfigured?: boolean): MenuPick[] {
+  if (!asaasConfigured) return entries;
+  const hasPix = entries.some(
+    (e) => e.action === "PAYMENT" || /pix|pagar|pagamento|sinal/i.test(`${e.label} ${e.response ?? ""}`)
+  );
+  if (hasPix) return entries;
+  const maxNum = entries.reduce((m, e) => Math.max(m, e.num), 0);
+  return [
+    ...entries,
+    {
+      num: maxNum + 1,
+      label: "Pagar com PIX",
+      response: "Qual o valor? (ex: *50* ou *150,00*)",
+      action: "PAYMENT",
+      enabled: true,
+      emoji: "💳",
+    },
+  ];
 }
 
 function legacyMenuResponse(action: BotMenuAction, businessType?: string): string {
@@ -630,6 +711,7 @@ function legacyMenuResponse(action: BotMenuAction, businessType?: string): strin
   const map: Record<BotMenuAction, string> = {
     APPOINTMENT: v.botLegacyAppointmentHint,
     CATALOG: v.botLegacyCatalogHint,
+    PAYMENT: "Qual o valor? (ex: *50* ou *150,00*)",
     FAQ: "Envie sua dúvida em texto ou digite *dúvida* para ver as perguntas frequentes.",
     HUMAN: "Certo! Vou chamar um atendente. Aguarde um momento... 👤",
     EXIT: "",
@@ -687,6 +769,12 @@ function isHumanMenuItem(item: MenuPick): boolean {
   return /atendente|humano|pessoa/.test(r);
 }
 
+function isPaymentMenuItem(item: MenuPick): boolean {
+  if (item.action === "PAYMENT") return true;
+  const r = `${item.label} ${item.response ?? ""}`.toLowerCase();
+  return /pix|pagar|pagamento|sinal/.test(r);
+}
+
 async function handleMenuItemSelection(
   item: MenuPick,
   ctx: BotContext,
@@ -702,6 +790,9 @@ async function handleMenuItemSelection(
   }
   if (isFaqMenuItem(item)) {
     return handleFAQ(ctx.messageBody, business, conversation, sessionKey);
+  }
+  if (isPaymentMenuItem(item)) {
+    return startPaymentFlow(ctx, business, conversation, sessionKey);
   }
   if (isHumanMenuItem(item)) {
     await updateConversationStatus(business.id, conversation.id, "ATTENDING");
@@ -750,6 +841,8 @@ async function routeMenuAction(
       return startAppointmentFlow(business, conversation, sessionKey);
     case "FAQ":
       return handleFAQ(ctx.messageBody, business, conversation, sessionKey);
+    case "PAYMENT":
+      return startPaymentFlow(ctx, business, conversation, sessionKey);
     case "HUMAN":
       await updateConversationStatus(business.id, conversation.id, "ATTENDING");
       return saveHumanHandoff(business.id, conversation.id);
