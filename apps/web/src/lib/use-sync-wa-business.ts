@@ -12,6 +12,7 @@ export function useSyncWhatsAppBusiness(businessId: string) {
   const query = useQuery({
     queryKey: ["wa-status", businessId],
     queryFn: () => whatsappApi.status(businessId),
+    enabled: !!businessId,
     refetchInterval: (q) => {
       if (q.state.data?.connected) return 15000;
       if (q.state.data?.qr) return 1200;
