@@ -1,4 +1,6 @@
 FROM node:20-alpine AS builder
+ARG NODE_OPTIONS=--max-old-space-size=384
+ENV NODE_OPTIONS=${NODE_OPTIONS}
 RUN corepack enable
 WORKDIR /app
 
@@ -37,7 +39,7 @@ COPY --from=builder /app/packages/firebase/dist packages/firebase/dist
 COPY --from=builder /app/packages/shared/dist packages/shared/dist
 COPY --from=builder /app/packages/whatsapp-client/dist packages/whatsapp-client/dist
 
-RUN mkdir -p /app/sessions && chown -R node:node /app
+RUN mkdir -p /app/sessions && chown node:node /app/sessions
 USER node
 
 EXPOSE 3001

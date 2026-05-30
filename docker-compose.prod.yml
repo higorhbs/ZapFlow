@@ -29,9 +29,12 @@ services:
       retries: 10
 
   api:
+    image: ${API_IMAGE:-zapflow-api}
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      args:
+        NODE_OPTIONS: --max-old-space-size=384
     restart: unless-stopped
     init: true
     logging: *default-logging
