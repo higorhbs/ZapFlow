@@ -3,7 +3,10 @@ import { requireEnv } from "./env";
 
 loadMonorepoEnv();
 
+import { installProcessGuards } from "./process-guards";
 import { buildApp } from "./app";
+
+installProcessGuards();
 
 async function bootstrap() {
   const app = await buildApp();

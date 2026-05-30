@@ -20,6 +20,7 @@ export default function WhatsAppPage() {
   const id = useBusinessId();
   const queryClient = useQueryClient();
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [connectError, setConnectError] = useState<string | null>(null);
   const lastSyncedConnected = useRef<boolean | null>(null);
   const wasConnected = useRef(false);
   const connectStarted = useRef(false);
@@ -50,6 +51,7 @@ export default function WhatsAppPage() {
     onSuccess: (data) => {
       const silent = silentConnect.current;
       silentConnect.current = false;
+      setConnectError(null);
       if (data.status === "qr" && data.qr) {
         setQrCode(data.qr);
         if (!silent) toast.info("QR Code gerado! Escaneie com seu WhatsApp.");
@@ -68,9 +70,12 @@ export default function WhatsAppPage() {
       }
     },
     onError: (err: Error) => {
+      const silent = silentConnect.current;
       silentConnect.current = false;
       connectStarted.current = false;
-      toast.error(err.message ?? "Erro ao iniciar conexão");
+      const msg = err.message ?? "Erro ao iniciar conexão";
+      setConnectError(msg);
+      if (!silent) toast.error(msg);
     },
   });
 
@@ -162,6 +167,13 @@ export default function WhatsAppPage() {
               ? "Gerando QR Code… aguarde nesta tela."
               : "Escaneie o QR Code para ativar o atendimento."}
         </p>
+
+        {connectError && !isConnected && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 text-left">
+            <p>{connectError}</p>
+            <p className="mt-1 text-amber-800">Se persistir, confira na VM: docker compose -f docker-compose.prod.yml ps && docker compose -f docker-compose.prod.yml logs --tail=80 api</p>
+          </div>
+        )}
 
         {isGeneratingQr && (
           <div className="mb-8 flex flex-col items-center gap-3">

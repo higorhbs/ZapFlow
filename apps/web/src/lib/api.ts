@@ -125,17 +125,19 @@ api.interceptors.response.use(
         : typeof data?.message === "string"
           ? data.message
           : null;
+    const apiUrl = resolveApiBaseUrl();
     if (apiMsg) {
       err.message = apiMsg;
+    } else if (status && status >= 502 && status <= 504) {
+      err.message = `API temporariamente indisponível (${apiUrl}). Aguarde ~30s e tente de novo.`;
     } else if (!err.response) {
       const isLocal = isLocalDevHost();
-      const apiUrl = resolveApiBaseUrl();
       if (isLocal) {
         err.message = "API offline. Inicie com pnpm dev (porta 3001).";
       } else if (err.code === "ECONNABORTED") {
         err.message = "API demorou para responder (servidor iniciando). Aguarde 30s e tente de novo.";
       } else {
-        err.message = `Não foi possível conectar à API (${apiUrl}). Tente novamente em instantes.`;
+        err.message = `Não foi possível conectar à API (${apiUrl}). Verifique se a VM está no ar e se o front usa HTTPS na URL da API.`;
       }
     } else if (status === 401) {
       err.message = "Sessão inválida. Entre de novo.";

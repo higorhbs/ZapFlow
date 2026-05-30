@@ -159,8 +159,7 @@ export async function whatsappRoutes(app: FastifyInstance) {
     if (
       client &&
       !client.isConnected() &&
-      client.status !== "connecting" &&
-      client.status !== "qr" &&
+      client.status === "close" &&
       hasStoredSession(sessionsRoot, id)
     ) {
       void client.connect().catch((err) => {
