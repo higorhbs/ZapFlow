@@ -16,13 +16,15 @@ import {
   updateFaq,
   deleteFaq,
   listPayments,
+  type Business,
 } from "@zapflow/firebase";
 import { PLAN_LIMITS } from "@zapflow/shared";
 import { requireAuth } from "../middleware/auth";
 
-const businessBody = z.object({
+const businessBodyBase = z.object({
   name: z.string().min(2),
   type: z.enum(["BARBERSHOP", "SALON", "RESTAURANT", "DENTAL", "STORE", "OTHER"]),
+  typeLabel: z.string().trim().min(2).max(60).optional().nullable(),
   phone: z.string().min(10),
   address: z.string().optional(),
   description: z.string().optional(),
@@ -30,6 +32,32 @@ const businessBody = z.object({
   awayMsg: z.string().optional(),
   workingHours: z.record(z.union([z.tuple([z.string(), z.string()]), z.null()])).optional(),
 });
+
+function requireOtherTypeLabel<T extends { type?: string; typeLabel?: string | null }>(
+  data: T,
+  ctx: z.RefinementCtx
+) {
+  if (data.type === "OTHER" && !data.typeLabel?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Informe o nome do tipo de negócio",
+      path: ["typeLabel"],
+    });
+  }
+}
+
+const businessBody = businessBodyBase.superRefine(requireOtherTypeLabel);
+const businessBodyPatch = businessBodyBase.partial().superRefine(requireOtherTypeLabel);
+
+type BusinessBody = z.infer<typeof businessBodyBase>;
+
+function normalizeBusinessBody(body: Partial<BusinessBody>): Partial<Business> {
+  const next = { ...body } as Partial<Business>;
+  if (next.type && next.type !== "OTHER") next.typeLabel = undefined;
+  else if (next.typeLabel === null) next.typeLabel = undefined;
+  else if (typeof next.typeLabel === "string") next.typeLabel = next.typeLabel.trim() || undefined;
+  return next;
+}
 
 export async function businessRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
@@ -41,16 +69,17 @@ export async function businessRoutes(app: FastifyInstance) {
     if (existing.length > 0) {
       return reply.status(409).send({ error: "Sua conta já possui um negócio cadastrado." });
     }
-    const body = businessBody.parse(req.body);
+    const parsed = businessBody.parse(req.body);
     const business = await createBusiness(req.tenantId, {
-      name: body.name,
-      type: body.type,
-      phone: body.phone,
-      address: body.address,
-      description: body.description,
-      greetingMsg: body.greetingMsg ?? "Olá! Como posso ajudar?",
-      awayMsg: body.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
-      workingHours: body.workingHours ?? {},
+      name: parsed.name,
+      type: parsed.type,
+      typeLabel: parsed.typeLabel ?? undefined,
+      phone: parsed.phone,
+      address: parsed.address,
+      description: parsed.description,
+      greetingMsg: parsed.greetingMsg ?? "Olá! Como posso ajudar?",
+      awayMsg: parsed.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
+      workingHours: parsed.workingHours ?? {},
     });
     return reply.status(201).send(business);
   });
@@ -64,7 +93,7 @@ export async function businessRoutes(app: FastifyInstance) {
 
   app.put("/businesses/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const body = businessBody.partial().parse(req.body);
+    const body = normalizeBusinessBody(businessBodyPatch.parse(req.body));
     const updated = await updateBusiness(id, req.tenantId, body);
     if (!updated) return reply.status(404).send({ error: "Not found" });
     return updated;

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { businessApi, tenantApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
-import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
+import { getBusinessTypeLabel } from "@/lib/utils";
 import { APP_DISPLAY_NAME } from "@zapflow/shared";
 import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { AppLink as Link } from "@/components/AppLink";
@@ -110,7 +110,7 @@ export default function BusinessesPage() {
           <div className="flex-1 min-w-0">
             <p className="text-gray-900 text-lg font-bold leading-tight truncate">{business.name}</p>
             <p className="text-gray-500 text-sm mt-0.5">
-              {BUSINESS_TYPE_LABELS[business.type]}
+              {getBusinessTypeLabel(business.type, business.typeLabel)}
               {business.phone && <> · {business.phone}</>}
             </p>
             {business.address && (

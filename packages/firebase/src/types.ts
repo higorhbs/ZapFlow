@@ -48,6 +48,7 @@ export interface Business {
   tenantId: string;
   name: string;
   type: BusinessType;
+  typeLabel?: string;
   phone: string;
   address?: string;
   description?: string;

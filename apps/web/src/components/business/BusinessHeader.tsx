@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { businessApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
-import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
+import { getBusinessTypeLabel } from "@/lib/utils";
 import { Wifi, WifiOff, Store } from "lucide-react";
 
 export function BusinessHeader({ businessId }: { businessId: string }) {
@@ -28,7 +28,7 @@ export function BusinessHeader({ businessId }: { businessId: string }) {
           </h2>
           {business && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
-              {BUSINESS_TYPE_LABELS[business.type] ?? business.type}
+              {getBusinessTypeLabel(business.type, business.typeLabel)}
             </span>
           )}
         </div>

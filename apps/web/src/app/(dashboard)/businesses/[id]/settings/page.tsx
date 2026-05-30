@@ -18,15 +18,26 @@ import { WorkingHoursEditor, defaultWorkingHours, type WorkingHoursValue } from 
 import { useBusinessId } from "@/lib/use-business-id";
 import { persistBusinessSnapshot } from "@/lib/business-route";
 
-const schema = z.object({
-  name: z.string().min(2),
-  type: z.enum(["BARBERSHOP", "SALON", "RESTAURANT", "DENTAL", "STORE", "OTHER"]),
-  phone: z.string().min(10),
-  address: z.string().optional(),
-  description: z.string().optional(),
-  greetingMsg: z.string().min(5),
-  awayMsg: z.string().min(5),
-});
+const schema = z
+  .object({
+    name: z.string().min(2),
+    type: z.enum(["BARBERSHOP", "SALON", "RESTAURANT", "DENTAL", "STORE", "OTHER"]),
+    typeLabel: z.string().trim().max(60).optional(),
+    phone: z.string().min(10),
+    address: z.string().optional(),
+    description: z.string().optional(),
+    greetingMsg: z.string().min(5),
+    awayMsg: z.string().min(5),
+  })
+  .superRefine((data, ctx) => {
+    if (data.type === "OTHER" && (!data.typeLabel || data.typeLabel.trim().length < 2)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Informe o nome do tipo de negócio",
+        path: ["typeLabel"],
+      });
+    }
+  });
 
 type FormData = z.infer<typeof schema>;
 
@@ -61,6 +72,7 @@ export default function SettingsPage() {
       type: schema.shape.type.safeParse(business.type).success
         ? (business.type as FormData["type"])
         : "OTHER",
+      typeLabel: business.typeLabel ?? "",
       phone: business.phone ?? "",
       address: business.address ?? "",
       description: business.description ?? "",
@@ -72,7 +84,12 @@ export default function SettingsPage() {
   }, [business, reset]);
 
   const saveMutation = useMutation({
-    mutationFn: (data: FormData) => businessApi.update(businessId, { ...data, workingHours }),
+    mutationFn: (data: FormData) =>
+      businessApi.update(businessId, {
+        ...data,
+        typeLabel: data.type === "OTHER" ? data.typeLabel?.trim() : undefined,
+        workingHours,
+      }),
     onSuccess: (_data, variables) => {
       setHoursDirty(false);
       persistBusinessSnapshot({ id: businessId, type: variables.type });
@@ -119,7 +136,19 @@ export default function SettingsPage() {
               name="type"
               control={control}
               render={({ field }) => (
-                <BusinessTypePicker value={field.value} onChange={field.onChange} />
+                <Controller
+                  name="typeLabel"
+                  control={control}
+                  render={({ field: labelField }) => (
+                    <BusinessTypePicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      typeLabel={labelField.value ?? ""}
+                      onTypeLabelChange={labelField.onChange}
+                      typeLabelError={errors.typeLabel?.message}
+                    />
+                  )}
+                />
               )}
             />
           </div>

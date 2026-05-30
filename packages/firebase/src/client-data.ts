@@ -6,6 +6,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   query,
   where,
 } from "firebase/firestore";
@@ -63,6 +64,7 @@ export async function createClientBusiness(
   data: {
     name: string;
     type: BusinessType;
+    typeLabel?: string;
     phone: string;
     address?: string;
     description?: string;
@@ -78,6 +80,7 @@ export async function createClientBusiness(
     tenantId,
     name: data.name,
     type: data.type,
+    typeLabel: data.typeLabel?.trim() || undefined,
     phone: data.phone,
     address: data.address,
     description: data.description,
@@ -100,11 +103,13 @@ export async function updateClientBusiness(
 ): Promise<Business | null> {
   const exists = await getClientBusiness(id, tenantId);
   if (!exists) return null;
-  const patch = { ...data, updatedAt: nowIso() };
-  delete (patch as { id?: string }).id;
-  delete (patch as { tenantId?: string }).tenantId;
+  const patch: Record<string, unknown> = { ...data, updatedAt: nowIso() };
+  delete patch.id;
+  delete patch.tenantId;
+  if (patch.type && patch.type !== "OTHER") patch.typeLabel = deleteField();
+  else if (typeof patch.typeLabel === "string") patch.typeLabel = patch.typeLabel.trim() || deleteField();
   await updateDoc(businessRef(id), patch);
-  return { ...exists, ...patch } as Business;
+  return getClientBusiness(id, tenantId);
 }
 
 export async function listClientCatalog(businessId: string): Promise<CatalogItem[]> {

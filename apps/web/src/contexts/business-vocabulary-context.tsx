@@ -18,8 +18,7 @@ import { businessApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import {
   persistBusinessSnapshot,
-  readStoredBusinessId,
-  readStoredBusinessType,
+  clearBusinessSession,
 } from "@/lib/business-route";
 
 type VocabularyContextValue = {
@@ -32,8 +31,6 @@ type VocabularyContextValue = {
 const VocabularyContext = createContext<VocabularyContextValue | null>(null);
 
 function readInitialType(): BusinessType | null {
-  const stored = readStoredBusinessType();
-  if (stored) return stored;
   if (typeof document !== "undefined") {
     const attr = document.documentElement.getAttribute("data-business-type");
     if (attr) return attr as BusinessType;
@@ -55,12 +52,20 @@ export function BusinessVocabularyProvider({ children }: { children: ReactNode }
   const tenant = businesses?.[0];
 
   useEffect(() => {
-    if (!tenant?.id || !tenant.type) return;
+    if (!uid) {
+      setType(null);
+      clearBusinessSession();
+      return;
+    }
+    if (!tenant?.id || !tenant.type) {
+      if (listFetched && !tenant) setType(null);
+      return;
+    }
     persistBusinessSnapshot({ id: tenant.id, type: tenant.type });
     setType(tenant.type);
-  }, [tenant?.id, tenant?.type]);
+  }, [uid, tenant?.id, tenant?.type, listFetched, tenant]);
 
-  const tenantBusinessId = readStoredBusinessId() ?? tenant?.id ?? "";
+  const tenantBusinessId = tenant?.id ?? "";
   const vocabReady = type !== null;
   const vocabulary = useMemo(
     () => getBusinessVocabulary(type ?? "OTHER"),

@@ -37,6 +37,47 @@ export function readStoredBusinessType(): BusinessType | null {
   }
 }
 
+export function clearBusinessSession() {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(ID_KEY);
+    sessionStorage.removeItem(TYPE_KEY);
+    document.documentElement.removeAttribute("data-business-type");
+  } catch {
+    /* ignore */
+  }
+}
+
+const AUTH_UID_KEY = "zapflow:lastAuthUid";
+
+export function readLastAuthUid(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return sessionStorage.getItem(AUTH_UID_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function writeLastAuthUid(uid: string | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (uid) sessionStorage.setItem(AUTH_UID_KEY, uid);
+    else sessionStorage.removeItem(AUTH_UID_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearAuthSessionMarkers() {
+  clearBusinessSession();
+  writeLastAuthUid(null);
+}
+
+function ownsBusiness(id: string, businesses: BusinessRow[] | undefined): boolean {
+  return Boolean(id && businesses?.some((b) => b.id === id));
+}
+
 export function persistBusinessSnapshot(business: BusinessSnapshot) {
   if (typeof window === "undefined" || !business.id || business.id === HOSTING_PLACEHOLDER_BUSINESS_ID) return;
   try {
@@ -62,12 +103,23 @@ export function resolveBusinessId(
 ): string {
   const segment = pathBusinessSegment(pathname);
   const stored = readStoredBusinessId();
-  const tenant = businesses?.[0];
 
-  if (segment && segment !== HOSTING_PLACEHOLDER_BUSINESS_ID) return segment;
-  if (stored) return stored;
-  if (tenant?.id) return tenant.id;
-  return segment ?? "";
+  if (businesses === undefined) {
+    if (segment && segment !== HOSTING_PLACEHOLDER_BUSINESS_ID) return segment;
+    return "";
+  }
+
+  if (stored && !ownsBusiness(stored, businesses)) {
+    clearBusinessSession();
+  }
+
+  if (segment && segment !== HOSTING_PLACEHOLDER_BUSINESS_ID && ownsBusiness(segment, businesses)) {
+    return segment;
+  }
+
+  if (stored && ownsBusiness(stored, businesses)) return stored;
+
+  return businesses[0]?.id ?? "";
 }
 
 export function resolveBusinessType(
@@ -75,8 +127,6 @@ export function resolveBusinessType(
   business: BusinessRow | null | undefined,
   businesses: BusinessRow[] | undefined
 ): BusinessType | undefined {
-  const stored = readStoredBusinessType();
-  if (stored) return stored;
   if (business?.type) return business.type;
   const match = businesses?.find((b) => b.id === businessId);
   if (match?.type) return match.type;

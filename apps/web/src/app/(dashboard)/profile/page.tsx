@@ -22,8 +22,7 @@ import {
 import { PLAN_LABELS, cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { CreditCard, Loader2, Mail, Lock, User, Shield, Sparkles, Chrome, FileDown, ChevronRight, Trash2, Crown, Zap, AlertTriangle } from "lucide-react";
-import { logoutFirebase } from "@/lib/firebase-auth";
-import { removeToken } from "@/lib/auth";
+import { resetClientSession, signOutAndReset } from "@/lib/session-reset";
 import { hostingHref } from "@/lib/hosting-href";
 
 const nameSchema = z.object({
@@ -132,13 +131,11 @@ export default function ProfilePage() {
     onSuccess: async () => {
       setDeleteOpen(false);
       setDeleteConfirm("");
-      queryClient.clear();
       try {
-        await logoutFirebase();
+        await signOutAndReset(queryClient);
       } catch {
-        /* sessão já encerrada no servidor */
+        resetClientSession(queryClient);
       }
-      removeToken();
       toast.success("Sua conta foi excluída permanentemente.");
       window.location.href = hostingHref("/");
     },
@@ -429,7 +426,7 @@ export default function ProfilePage() {
               <li>Seu negócio, conversas, agendamentos e catálogo</li>
               <li>Conexão do WhatsApp e sessão no servidor</li>
               <li>Assinatura e dados de cobrança (quando houver)</li>
-              <li>Sua conta de login no Firebase</li>
+              <li>Seu acesso ao painel</li>
             </ul>
             <Label htmlFor="delete-confirm" className="text-sm text-gray-700">
               Digite <span className="font-semibold">EXCLUIR</span> para confirmar

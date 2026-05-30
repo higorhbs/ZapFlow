@@ -17,10 +17,9 @@ import {
   Banknote,
   Loader2,
 } from "lucide-react";
-import { cn, BUSINESS_TYPE_LABELS } from "@/lib/utils";
+import { cn, getBusinessTypeLabel } from "@/lib/utils";
 import { APP_DISPLAY_NAME } from "@zapflow/shared";
-import { removeToken } from "@/lib/auth";
-import { logoutFirebase } from "@/lib/firebase-auth";
+import { signOutAndReset } from "@/lib/session-reset";
 import { useAppRouter } from "@/lib/app-navigation";
 import { SidebarProfile } from "./SidebarProfile";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -92,8 +91,7 @@ export function Sidebar() {
     : [];
 
   async function handleLogout() {
-    await logoutFirebase();
-    removeToken();
+    await signOutAndReset(queryClient);
     router.push("/");
   }
 
@@ -138,7 +136,7 @@ export function Sidebar() {
               </p>
               {business && (
                 <p className="text-xs text-gray-500 truncate">
-                  {BUSINESS_TYPE_LABELS[business.type] ?? business.type}
+                  {getBusinessTypeLabel(business.type, business.typeLabel)}
                 </p>
               )}
             </div>

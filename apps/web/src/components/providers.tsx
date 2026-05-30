@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, useEffect, useState } from "react";
 import { watchAuth, completeGoogleRedirect, authErrorMessage } from "@/lib/firebase-auth";
 import { setToken, removeToken } from "@/lib/auth";
+import { readLastAuthUid, writeLastAuthUid, clearAuthSessionMarkers } from "@/lib/business-route";
 import { AuthDrawerProvider } from "@/contexts/auth-drawer-context";
 import { HostingRouteGuard } from "@/components/HostingRouteGuard";
 import { hostingHref, isFirebaseHostingClient } from "@/lib/hosting-href";
@@ -38,6 +39,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
       });
 
     const unsub = watchAuth(async (user) => {
+      const nextUid = user?.emailVerified ? user.uid : null;
+      const prevUid = readLastAuthUid();
+
+      if ((prevUid && nextUid && prevUid !== nextUid) || (prevUid && !nextUid)) {
+        clearAuthSessionMarkers();
+        queryClient.clear();
+      }
+
+      writeLastAuthUid(nextUid);
+
       if (user) {
         await user.reload();
         if (!user.emailVerified) {

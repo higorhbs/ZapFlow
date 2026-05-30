@@ -331,3 +331,13 @@ export const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
   STORE: "Comércio local",
   OTHER: "Outro",
 };
+
+export function getBusinessTypeLabel(
+  type?: BusinessType | string | null,
+  typeLabel?: string | null
+): string {
+  const custom = typeLabel?.trim();
+  if (type === "OTHER" && custom) return custom;
+  if (type && type in BUSINESS_TYPE_LABELS) return BUSINESS_TYPE_LABELS[type as BusinessType];
+  return custom || "Outro";
+}

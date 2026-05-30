@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, MailCheck, RefreshCw, LogOut } from "lucide-react";
-import { watchAuth, resendVerificationEmail, refreshVerifiedSession, logoutFirebase } from "@/lib/firebase-auth";
+import { watchAuth, resendVerificationEmail, refreshVerifiedSession } from "@/lib/firebase-auth";
 import { setToken } from "@/lib/auth";
+import { signOutAndReset } from "@/lib/session-reset";
 import { Button } from "@/components/ui/button";
 
 export function EmailVerificationBanner() {
@@ -54,7 +55,7 @@ export function EmailVerificationBanner() {
   }
 
   async function handleLogout() {
-    await logoutFirebase();
+    await signOutAndReset();
     toast.message("Sessão encerrada.");
   }
 

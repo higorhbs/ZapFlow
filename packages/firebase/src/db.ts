@@ -16,6 +16,7 @@ import type {
   BusinessAsaasIntegration,
 } from "./types.js";
 import type { Query } from "firebase-admin/firestore";
+import { FieldValue as AdminFieldValue } from "firebase-admin/firestore";
 import { getDb, newId, nowIso } from "./admin.js";
 
 const tenants = () => getDb().collection("tenants");
@@ -267,11 +268,13 @@ export async function updateBusiness(
 ): Promise<Business | null> {
   const exists = await getBusiness(id, tenantId);
   if (!exists) return null;
-  const patch = { ...data, updatedAt: nowIso() };
-  delete (patch as { id?: string }).id;
-  delete (patch as { tenantId?: string }).tenantId;
+  const patch: Record<string, unknown> = { ...data, updatedAt: nowIso() };
+  delete patch.id;
+  delete patch.tenantId;
+  if (patch.type && patch.type !== "OTHER") patch.typeLabel = AdminFieldValue.delete();
+  else if (typeof patch.typeLabel === "string") patch.typeLabel = patch.typeLabel.trim() || AdminFieldValue.delete();
   await businessRef(id).update(patch);
-  return { ...exists, ...patch } as Business;
+  return getBusiness(id, tenantId);
 }
 
 export async function setBusinessConnected(id: string, isConnected: boolean): Promise<void> {
