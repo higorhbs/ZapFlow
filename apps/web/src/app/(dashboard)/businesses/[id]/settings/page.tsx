@@ -18,10 +18,12 @@ import { WorkingHoursEditor, defaultWorkingHours, type WorkingHoursValue } from 
 import { useBusinessId } from "@/lib/use-business-id";
 import { persistBusinessSnapshot } from "@/lib/business-route";
 
+const businessTypeSchema = z.enum(["BARBERSHOP", "SALON", "RESTAURANT", "DENTAL", "STORE", "OTHER"]);
+
 const schema = z
   .object({
     name: z.string().min(2),
-    type: z.enum(["BARBERSHOP", "SALON", "RESTAURANT", "DENTAL", "STORE", "OTHER"]),
+    type: businessTypeSchema,
     typeLabel: z.string().trim().max(60).optional(),
     phone: z.string().min(10),
     address: z.string().optional(),
@@ -69,7 +71,7 @@ export default function SettingsPage() {
     if (business.id && business.type) persistBusinessSnapshot({ id: business.id, type: business.type });
     reset({
       name: business.name ?? "",
-      type: schema.shape.type.safeParse(business.type).success
+      type: businessTypeSchema.safeParse(business.type).success
         ? (business.type as FormData["type"])
         : "OTHER",
       typeLabel: business.typeLabel ?? "",
