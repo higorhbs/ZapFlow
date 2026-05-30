@@ -93,25 +93,19 @@ async function connectForQr(
     return { status: "qr", qr: client.lastQrDataUrl };
   }
 
-  void client.connect().catch((err) => {
-    log.error({ err }, "whatsapp connect failed");
-  });
-
-  let result = await waitForQr(client, 30_000);
-  if (result.qr || client.isConnected()) return result;
-
-  const staleSession =
-    !force && hasStoredSession(sessionsRoot, businessId) && !client.lastQrDataUrl;
-  if (staleSession) {
-    await resetWhatsAppSession(businessId, sessionsRoot);
-    const fresh = ensureWhatsAppClient(waManager, sessionsRoot, businessId);
-    void fresh.connect().catch((err) => {
-      log.error({ err }, "whatsapp fresh connect failed");
+  if (client.status === "close") {
+    void client.connect().catch((err) => {
+      log.error({ err }, "whatsapp connect failed");
     });
-    result = await waitForQr(fresh, 45_000);
   }
 
-  return result;
+  const result = await waitForQr(client, 12_000);
+  if (result.qr || client.isConnected()) return result;
+
+  return {
+    status: "connecting",
+    message: "Gerando QR Code. Aguarde nesta tela — o status atualiza sozinho.",
+  };
 }
 
 export async function whatsappRoutes(app: FastifyInstance) {
@@ -166,7 +160,7 @@ export async function whatsappRoutes(app: FastifyInstance) {
         req.log.error({ err }, "whatsapp reconnect failed");
       });
     }
-    const connected = client?.isConnected() ?? false;
+    const connected = client ? client.isConnected() || client.status === "open" : false;
     if (connected !== business.isConnected) {
       await setBusinessConnected(id, connected);
     }

@@ -26,11 +26,16 @@ export default function WhatsAppPage() {
   const connectStarted = useRef(false);
   const silentConnect = useRef(false);
 
-  const { data: status, isLoading } = useSyncWhatsAppBusiness(id);
+  const { data: status, isLoading, isError: statusError, failureReason: statusFailure } =
+    useSyncWhatsAppBusiness(id);
 
   useEffect(() => {
     connectStarted.current = false;
   }, [id]);
+
+  useEffect(() => {
+    if (status?.connected || status?.qr) setConnectError(null);
+  }, [status?.connected, status?.qr]);
 
   useEffect(() => {
     if (status?.connected && !wasConnected.current) {
@@ -73,9 +78,11 @@ export default function WhatsAppPage() {
       const silent = silentConnect.current;
       silentConnect.current = false;
       connectStarted.current = false;
+      void queryClient.invalidateQueries({ queryKey: ["wa-status", id] });
+      if (silent) return;
       const msg = err.message ?? "Erro ao iniciar conexão";
       setConnectError(msg);
-      if (!silent) toast.error(msg);
+      toast.error(msg);
     },
   });
 
@@ -92,17 +99,6 @@ export default function WhatsAppPage() {
     }, 400);
     return () => clearTimeout(t);
   }, [isLoading, waUnavailable, status?.connected, status?.qr, qrCode, isConnectPending, startConnect]);
-
-  useEffect(() => {
-    if (qrCode || status?.qr || status?.connected || waUnavailable) return;
-    const t = setTimeout(() => {
-      if (qrCode || status?.qr || connectStarted.current) return;
-      connectStarted.current = true;
-      silentConnect.current = true;
-      startConnect(true);
-    }, 40_000);
-    return () => clearTimeout(t);
-  }, [qrCode, status?.qr, status?.connected, waUnavailable, startConnect]);
 
   const isConnected = status?.connected;
 
@@ -168,10 +164,16 @@ export default function WhatsAppPage() {
               : "Escaneie o QR Code para ativar o atendimento."}
         </p>
 
-        {connectError && !isConnected && (
+        {(connectError || statusError) && !isConnected && (
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 text-left">
-            <p>{connectError}</p>
-            <p className="mt-1 text-amber-800">Se persistir, confira na VM: docker compose -f docker-compose.prod.yml ps && docker compose -f docker-compose.prod.yml logs --tail=80 api</p>
+            <p>
+              {statusError
+                ? (statusFailure instanceof Error ? statusFailure.message : "Não foi possível consultar o status do WhatsApp.")
+                : connectError}
+            </p>
+            {status?.status === "connecting" || status?.qr || qrCode ? (
+              <p className="mt-1 text-amber-800">Se você já escaneou o QR, aguarde — a tela atualiza sozinha.</p>
+            ) : null}
           </div>
         )}
 

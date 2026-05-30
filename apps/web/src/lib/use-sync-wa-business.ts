@@ -17,8 +17,10 @@ export function useSyncWhatsAppBusiness(businessId: string) {
       if (q.state.data?.connected) return 15000;
       if (q.state.data?.qr) return 1200;
       if (q.state.data?.status === "connecting" || q.state.data?.status === "qr") return 1200;
+      if (q.state.status === "error") return 4000;
       return 2500;
     },
+    retry: 2,
   });
 
   useEffect(() => {

@@ -253,12 +253,12 @@ export const whatsappApi = {
     await wakeProductionApi();
     return api
       .post(`/businesses/${businessId}/whatsapp/connect${force ? "?force=1" : ""}`, undefined, {
-        timeout: 90_000,
+        timeout: 25_000,
       })
       .then((r) => r.data);
   },
   status: (businessId: string) =>
-    api.get(`/businesses/${businessId}/whatsapp/status`).then((r) => r.data),
+    api.get(`/businesses/${businessId}/whatsapp/status`, { timeout: 20_000 }).then((r) => r.data),
   disconnect: (businessId: string) =>
     api.post(`/businesses/${businessId}/whatsapp/disconnect`).then((r) => r.data),
   send: (businessId: string, to: string, text: string, conversationId?: string) =>
