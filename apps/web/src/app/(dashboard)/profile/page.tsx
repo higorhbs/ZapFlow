@@ -21,7 +21,10 @@ import {
 } from "@/lib/firebase-auth";
 import { PLAN_LABELS, cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { CreditCard, Loader2, Mail, Lock, User, Shield, Sparkles, Chrome, FileDown, ChevronRight, Trash2, EyeOff, Crown, Zap } from "lucide-react";
+import { CreditCard, Loader2, Mail, Lock, User, Shield, Sparkles, Chrome, FileDown, ChevronRight, Trash2, Crown, Zap, AlertTriangle } from "lucide-react";
+import { logoutFirebase } from "@/lib/firebase-auth";
+import { removeToken } from "@/lib/auth";
+import { hostingHref } from "@/lib/hosting-href";
 
 const nameSchema = z.object({
   name: z.string().min(2, "Nome muito curto"),
@@ -51,6 +54,8 @@ export default function ProfilePage() {
   const { uid, ready } = useAuth();
   const queryClient = useQueryClient();
   const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
 
   useEffect(() => watchAuth(setUser), []);
 
@@ -122,25 +127,23 @@ export default function ProfilePage() {
     onError: (err: unknown) => toast.error(authErrorMessage(err, "Erro ao exportar dados")),
   });
 
-  const requestLgpd = useMutation({
-    mutationFn: (payload: { type: "CORRECTION" | "OPPOSITION" | "REVOCATION" | "ERASURE"; details?: string }) =>
-      privacyApi.request(payload.type, payload.details),
-    onSuccess: (_, vars) => {
-      const labels: Record<string, string> = {
-        CORRECTION: "correção",
-        OPPOSITION: "oposição",
-        REVOCATION: "revogação",
-        ERASURE: "exclusão",
-      };
-      toast.success(`Solicitação LGPD de ${labels[vars.type]} registrada.`);
+  const deleteAccount = useMutation({
+    mutationFn: () => privacyApi.deleteAccount(),
+    onSuccess: async () => {
+      setDeleteOpen(false);
+      setDeleteConfirm("");
+      queryClient.clear();
+      try {
+        await logoutFirebase();
+      } catch {
+        /* sessão já encerrada no servidor */
+      }
+      removeToken();
+      toast.success("Sua conta foi excluída permanentemente.");
+      window.location.href = hostingHref("/");
     },
-    onError: (err: unknown) => toast.error(authErrorMessage(err, "Erro ao registrar solicitação LGPD")),
-  });
-
-  const anonymizeData = useMutation({
-    mutationFn: () => privacyApi.anonymizeMyData(),
-    onSuccess: () => toast.success("Dados anonimizados com sucesso."),
-    onError: (err: unknown) => toast.error(authErrorMessage(err, "Erro ao anonimizar dados")),
+    onError: (err: unknown) =>
+      toast.error(authErrorMessage(err, "Não foi possível excluir a conta. Tente novamente.")),
   });
 
   if (isLoading || !tenant) {
@@ -390,46 +393,85 @@ export default function ProfilePage() {
 
             <button
               type="button"
-              onClick={() => requestLgpd.mutate({ type: "ERASURE", details: "Solicito exclusão/anonimização dos dados." })}
-              disabled={requestLgpd.isPending}
+              onClick={() => {
+                setDeleteConfirm("");
+                setDeleteOpen(true);
+              }}
+              disabled={deleteAccount.isPending}
               className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group text-left disabled:opacity-60"
             >
               <div className="w-9 h-9 rounded-lg bg-rose-50 flex items-center justify-center flex-shrink-0">
-                {requestLgpd.isPending
+                {deleteAccount.isPending
                   ? <Loader2 className="w-4 h-4 text-rose-500 animate-spin" />
                   : <Trash2 className="w-4 h-4 text-rose-500" />}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-rose-600">Solicitar exclusão da conta</p>
-                <p className="text-xs text-gray-500">Envia pedido de remoção permanente dos dados</p>
+                <p className="text-sm font-medium text-rose-600">Excluir conta permanentemente</p>
+                <p className="text-xs text-gray-500">Apaga negócio, conversas, assinatura e login</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-rose-400 transition-colors flex-shrink-0" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (confirm("Esta ação remove suas informações pessoais imediatamente. Deseja continuar?")) {
-                  anonymizeData.mutate();
-                }
-              }}
-              disabled={anonymizeData.isPending}
-              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group text-left disabled:opacity-60"
-            >
-              <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                {anonymizeData.isPending
-                  ? <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />
-                  : <EyeOff className="w-4 h-4 text-gray-500" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-700">Apagar informações pessoais</p>
-                <p className="text-xs text-gray-500">Remove seus dados do sistema imediatamente</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors flex-shrink-0" />
             </button>
           </Card>
         </div>
       </div>
+
+      {deleteOpen && (
+        <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <Card className="w-full max-w-md p-6">
+            <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Excluir conta permanentemente?</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Esta ação é irreversível. Serão apagados:
+            </p>
+            <ul className="text-sm text-gray-600 space-y-1 mb-5 list-disc pl-5">
+              <li>Seu negócio, conversas, agendamentos e catálogo</li>
+              <li>Conexão do WhatsApp e sessão no servidor</li>
+              <li>Assinatura e dados de cobrança (quando houver)</li>
+              <li>Sua conta de login no Firebase</li>
+            </ul>
+            <Label htmlFor="delete-confirm" className="text-sm text-gray-700">
+              Digite <span className="font-semibold">EXCLUIR</span> para confirmar
+            </Label>
+            <Input
+              id="delete-confirm"
+              className="mt-1.5 mb-5"
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              placeholder="EXCLUIR"
+              autoComplete="off"
+              disabled={deleteAccount.isPending}
+            />
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                disabled={deleteAccount.isPending}
+                onClick={() => {
+                  setDeleteOpen(false);
+                  setDeleteConfirm("");
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 bg-rose-600 hover:bg-rose-700"
+                disabled={deleteConfirm !== "EXCLUIR" || deleteAccount.isPending}
+                onClick={() => deleteAccount.mutate()}
+              >
+                {deleteAccount.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Excluir minha conta"
+                )}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

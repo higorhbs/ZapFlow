@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDb, getTenant } from "@zapflow/firebase";
 import { requireAuth } from "../middleware/auth";
 import { runPrivacyRetentionForAllTenants } from "../services/privacy-compliance";
+import { deleteTenantAccountCompletely } from "../services/delete-account.js";
 
 const consentBody = z.object({
   policyVersion: z.string().min(3),
@@ -168,6 +169,19 @@ export async function privacyRoutes(app: FastifyInstance) {
       userAgent: req.headers["user-agent"] ?? "",
     });
     return { ok: true, requestId: ref.id };
+  });
+
+  app.post("/privacy/delete-account", async (req, reply) => {
+    const tenantId = req.tenantId;
+    try {
+      await deleteTenantAccountCompletely(tenantId);
+      return { ok: true };
+    } catch (err) {
+      req.log.error({ err, tenantId }, "delete-account failed");
+      return reply.status(500).send({
+        error: err instanceof Error ? err.message : "Não foi possível excluir a conta.",
+      });
+    }
   });
 
   app.post("/privacy/anonymize", async (req) => {

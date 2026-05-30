@@ -352,4 +352,5 @@ export const privacyApi = {
   request: (type: "CORRECTION" | "OPPOSITION" | "REVOCATION" | "ERASURE", details?: string) =>
     api.post("/privacy/requests", { type, details }).then((r) => r.data),
   anonymizeMyData: () => api.post("/privacy/anonymize").then((r) => r.data),
+  deleteAccount: () => api.post("/privacy/delete-account").then((r) => r.data),
 };
