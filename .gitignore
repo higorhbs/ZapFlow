@@ -1,11 +1,13 @@
 # Dependencies
 node_modules/
+.pnpm-store/
 
 # Build / compile
 dist/
 build/
 .next/
 out/
+.swc/
 *.tsbuildinfo
 
 # Turborepo
@@ -16,14 +18,19 @@ out/
 .env.*
 !.env.example
 !**/.env*.example
+.env.server
+.env.oracle
 .secrets/
 *.pem
 *.key
+*.p12
+*.pfx
 *credentials*.json
 *adminsdk*.json
 serviceAccount*.json
 google-services.json
 GoogleService-Info.plist
+.runtimeconfig.json
 
 # Firebase (cache local de deploy)
 .firebase/
@@ -32,6 +39,7 @@ firestore-debug.log
 ui-debug.log
 pubsub-debug.log
 database-debug.log
+storage-debug.log
 .firebaserc.local
 
 # Front estático (gerado no build:hosting)
@@ -47,9 +55,11 @@ sessions/
 **/sessions/
 auth_info/
 *.session
+*.creds
 
 # Redis
 dump.rdb
+*.rdb
 
 # Logs
 *.log
@@ -57,6 +67,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
 # Testes / coverage
 coverage/
@@ -71,6 +82,7 @@ test-results/
 *.swp
 *.swo
 *~
+*.code-workspace
 
 # Assistentes de IA (config local)
 .claude/
@@ -80,9 +92,13 @@ test-results/
 .DS_Store
 .AppleDouble
 .LSOverride
+._*
+.Spotlight-V100
+.Trashes
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+*.stackdump
 
 # Caches diversos
 .cache/
@@ -90,10 +106,17 @@ Desktop.ini
 .eslintcache
 .stylelintcache
 .npm/
+*.tgz
 
 # Docker overrides locais
 docker-compose.override.yml
 docker-compose.*.local.yml
 
-# Misc
+# Temp / backups
 *.local
+*.orig
+*.rej
+*.bak
+*.tmp
+*.pid
+*.pid.lock
