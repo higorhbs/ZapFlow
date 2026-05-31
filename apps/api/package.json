@@ -15,6 +15,7 @@
     "@fastify/formbody": "^7.4.0",
     "@flowdesk/firebase": "workspace:*",
     "@flowdesk/shared": "workspace:*",
+    "@flowdesk/whatsapp-client": "workspace:*",
     "axios": "^1.7.7",
     "date-fns": "^3.6.0",
     "fastify": "^4.28.1",
