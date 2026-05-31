@@ -53,8 +53,7 @@ export function useSyncWhatsAppBusiness(businessId: string) {
     });
   }, [connected, businessId, query.data?.connected, businessQuery.isFetched, queryClient]);
 
-  const isInitialLoading =
-    (!query.data && query.isPending) || (!businessQuery.data && businessQuery.isPending);
+  const isInitialLoading = !query.data && query.isPending;
 
   return {
     ...query,
