@@ -288,23 +288,19 @@ export const conversationApi = {
     updateClientConversationStatus(businessId, requireUid(), conversationId, "CLOSED"),
 };
 
-async function wakeWaApi() {
+function wakeWaApi() {
   if (!hasWaApi()) return;
   const base = getWaApiBaseUrl();
   if (/localhost|127\.0\.0\.1/.test(base)) return;
-  try {
-    await waApi.get("/health", { timeout: 15_000 });
-  } catch {
-    /* cold start */
-  }
+  void waApi.get("/health", { timeout: 4_000 }).catch(() => undefined);
 }
 
 export const whatsappApi = {
   connect: async (businessId: string, force = false) => {
-    await wakeWaApi();
+    wakeWaApi();
     return waApi
       .post(`/businesses/${businessId}/whatsapp/connect${force ? "?force=1" : ""}`, undefined, {
-        timeout: 25_000,
+        timeout: 50_000,
       })
       .then((r) => r.data);
   },

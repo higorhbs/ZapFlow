@@ -16,23 +16,22 @@ export function useSyncWhatsAppBusiness(businessId: string) {
     staleTime: 60_000,
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
-    notifyOnChangeProps: ["data", "error", "isError"],
   });
 
   const query = useQuery({
     queryKey: ["wa-status", businessId],
     queryFn: () => whatsappApi.status(businessId),
     enabled: !!businessId,
-    staleTime: 10_000,
+    staleTime: (q) =>
+      q.state.data?.status === "connecting" || q.state.data?.status === "qr" ? 0 : 10_000,
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
-    notifyOnChangeProps: ["data", "error", "isError"],
     refetchInterval: (q) => {
       const live = q.state.data?.connected === true;
       const stored = businessQuery.data?.isConnected === true;
       if (live || stored) return 60_000;
-      if (q.state.data?.qr) return 3_000;
-      if (q.state.data?.status === "connecting" || q.state.data?.status === "qr") return 3_000;
+      if (q.state.data?.qr) return 2_000;
+      if (q.state.data?.status === "connecting" || q.state.data?.status === "qr") return 1_000;
       if (q.state.status === "error") return 15_000;
       return 8_000;
     },

@@ -34,7 +34,7 @@ const PHASE_CAPTION: Record<WhatsAppRunnerPhase, string> = {
   idle: "Pronto para conectar",
   checking: "Alcançando o agente WhatsApp",
   linking: "Abrindo canal seguro",
-  qr: "QR Code pronto — escaneie no celular",
+  qr: "Gerando QR Code…",
   scan: "Confirmando pareamento",
   connected: "Atendimento automático ativo",
 };
@@ -47,11 +47,12 @@ function phaseIndex(phase: WhatsAppRunnerPhase) {
 export function resolveWhatsAppRunnerPhase(opts: {
   connected: boolean;
   reconnecting: boolean;
+  waitingQr: boolean;
   hasQr: boolean;
 }): WhatsAppRunnerPhase {
   if (opts.connected) return "connected";
   if (opts.hasQr) return "scan";
-  if (opts.reconnecting) return "linking";
+  if (opts.waitingQr || opts.reconnecting) return "qr";
   return "idle";
 }
 
