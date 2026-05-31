@@ -75,4 +75,11 @@ export {
 } from "./client-tenant.js";
 export * from "./client-data.js";
 export * from "./client-ops.js";
-export type { Plan, PlanStatus, Tenant, BotMenuItemConfig } from "./types.js";
+export type {
+  Plan,
+  PlanStatus,
+  Tenant,
+  BotMenuItemConfig,
+  ConversationStatus,
+  AppointmentStatus,
+} from "./types.js";
