@@ -21,6 +21,11 @@ interface ChatMsg {
   time: string;
 }
 
+interface StoryCard {
+  caption: string;
+  timeLabel: string;
+}
+
 interface StepDef {
   badge: string;
   title: string;
@@ -29,6 +34,7 @@ interface StepDef {
   accentColor: string;
   features: { icon: React.ElementType; text: string }[];
   chat: { businessName: string; messages: ChatMsg[] };
+  storyCard?: StoryCard;
 }
 
 const STEPS: StepDef[] = [
@@ -99,6 +105,39 @@ const STEPS: StepDef[] = [
           time: "14:30",
         },
       ],
+    },
+  },
+  {
+    badge: "Stories",
+    title: "Publique no Status do WhatsApp na hora certa",
+    subtitle: "Agende imagens e vídeos para o Status do WhatsApp com antecedência. Seu conteúdo é publicado automaticamente no horário definido — sem precisar estar no celular.",
+    color: "from-pink-500 to-rose-600",
+    accentColor: "bg-pink-600",
+    features: [
+      { icon: CalendarClock, text: "Agende stories para qualquer data e horário" },
+      { icon: TrendingUp, text: "Promoções e novidades chegam direto no status" },
+      { icon: Star, text: "Clientes veem o story e agendam pelo WhatsApp" },
+    ],
+    chat: {
+      businessName: "Barbearia do João",
+      messages: [
+        { from: "customer", text: "Oi! Vi o story de vocês com a promoção, ainda tem vaga hoje?", time: "10:14" },
+        {
+          from: "ia",
+          text: "Oi! 👋 Sim, a promoção está ativa hoje!\n\n*20% OFF* em qualquer serviço 🎉\n\nHorários disponíveis:\n• 11:00 — ✂️ Corte\n• 14:30 — ✂️🪒 Corte + Barba\n• 17:00 — ✂️ Corte\n\nQual prefere?",
+          time: "10:14",
+        },
+        { from: "customer", text: "14:30 perfeito!", time: "10:15" },
+        {
+          from: "ia",
+          text: "✅ *Agendado com sucesso!*\n\nHoje às 14:30\n✂️🪒 Corte + Barba\n_De R$ 60 por R$ 48_\n\nAproveite a promoção! 💈",
+          time: "10:15",
+        },
+      ],
+    },
+    storyCard: {
+      caption: "✂️ PROMOÇÃO HOJE!\n20% OFF em qualquer serviço\n\nAgende agora pelo WhatsApp 👇",
+      timeLabel: "10:00",
     },
   },
   {
@@ -246,6 +285,50 @@ function WaChat({ businessName, messages }: { businessName: string; messages: Ch
   );
 }
 
+function WaStoryCard({ caption, timeLabel }: StoryCard) {
+  return (
+    <div
+      className="relative rounded-2xl overflow-hidden shadow-lg flex-shrink-0"
+      style={{ background: "linear-gradient(160deg, #0f0c29, #302b63, #24243e)" }}
+    >
+      {/* Progress bars */}
+      <div className="absolute top-2.5 left-3 right-3 flex gap-1 z-10">
+        {[true, false, false].map((active, i) => (
+          <div key={i} className="flex-1 h-0.5 rounded-full bg-white/20 overflow-hidden">
+            {active && <div className="h-full w-3/5 bg-white rounded-full" />}
+          </div>
+        ))}
+      </div>
+
+      {/* Business header */}
+      <div className="absolute top-5 left-3 right-3 flex items-center gap-2 z-10">
+        <div className="w-6 h-6 rounded-full bg-[#128C7E] flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+          B
+        </div>
+        <span className="text-white text-xs font-medium">Barbearia do João</span>
+        <span className="text-white/50 text-[10px] ml-auto">{timeLabel}</span>
+      </div>
+
+      {/* Story content */}
+      <div className="flex flex-col items-center justify-center px-5 pt-12 pb-4 text-center gap-1">
+        <p className="text-white font-bold text-sm leading-snug whitespace-pre-line">{caption}</p>
+      </div>
+
+      {/* Reply bar */}
+      <div className="flex items-center gap-2 px-3 pb-3">
+        <div className="flex-1 bg-white/10 border border-white/20 rounded-full px-3 py-1.5 text-white/40 text-xs">
+          Responder...
+        </div>
+        <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-white/60">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function lsKey(uid: string) {
   return `flowdesk_onboarding_done_${uid}`;
 }
@@ -381,7 +464,10 @@ export function OnboardingTour({ variant = "dashboard" }: OnboardingTourProps) {
           </div>
 
           {/* Right: chat demo */}
-          <div className="flex-1 bg-gradient-to-br from-brand-50 via-white to-emerald-50 p-5 flex flex-col min-h-0 border-t md:border-t-0 md:border-l border-gray-100">
+          <div className="flex-1 bg-gradient-to-br from-brand-50 via-white to-emerald-50 p-5 flex flex-col min-h-0 gap-3 border-t md:border-t-0 md:border-l border-gray-100">
+            {current.storyCard && (
+              <WaStoryCard caption={current.storyCard.caption} timeLabel={current.storyCard.timeLabel} />
+            )}
             <div className="flex-1 min-h-0">
               <WaChat
                 businessName={current.chat.businessName}
