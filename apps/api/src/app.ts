@@ -17,10 +17,19 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   const corsOrigin = process.env.CORS_ORIGIN;
+  const webOrigins = (process.env.WEB_ORIGIN ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter((o) => o.startsWith("http"));
+  const allowedOrigins = new Set([
+    ...(corsOrigin?.split(",").map((o) => o.trim()).filter(Boolean) ?? []),
+    ...webOrigins,
+  ]);
   await app.register(cors, {
     origin: (origin, cb) => {
       if (!origin) return cb(null, true);
       if (corsOrigin === "*" || corsOrigin === origin) return cb(null, true);
+      if (allowedOrigins.has(origin)) return cb(null, true);
       if (
         !corsOrigin &&
         (/^https?:\/\/localhost(:\d+)?$/.test(origin) ||
@@ -30,7 +39,6 @@ export async function buildApp(): Promise<FastifyInstance> {
       ) {
         return cb(null, true);
       }
-      if (corsOrigin?.split(",").map((o) => o.trim()).includes(origin)) return cb(null, true);
       cb(new Error("CORS"), false);
     },
     credentials: true,

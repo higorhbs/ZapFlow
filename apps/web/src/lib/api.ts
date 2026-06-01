@@ -228,7 +228,13 @@ api.interceptors.response.use(
       } else if (err.code === "ECONNABORTED") {
         err.message = "API demorou para responder (servidor iniciando). Aguarde 30s e tente de novo.";
       } else {
-        err.message = `Não foi possível conectar à API (${apiUrl}). Verifique se a VM está no ar e se o front usa HTTPS na URL da API.`;
+        const pageOrigin =
+          typeof window !== "undefined" ? window.location.origin : "";
+        const corsHint =
+          pageOrigin && apiUrl && !apiUrl.startsWith(pageOrigin)
+            ? ` Se o painel está em ${pageOrigin}, inclua essa URL em CORS_ORIGIN na API (VM) e reinicie o container.`
+            : "";
+        err.message = `Não foi possível conectar à API (${apiUrl}). Verifique se a VM está no ar, HTTPS na URL da API e CORS.${corsHint}`;
       }
     } else if (status === 401) {
       err.message = "Sessão inválida. Entre de novo.";

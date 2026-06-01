@@ -34,7 +34,8 @@ DNS: registro **A** apontando `api.seudominio.com` → IP público da VM.
 No mesmo `.env` da VM:
 
 ```bash
-CORS_ORIGIN=https://zapflow-higor-2026.web.app,https://zapflow-higor-2026.firebaseapp.com
+CORS_ORIGIN=https://zapflow-higor-2026.web.app,https://zapflow-higor-2026.firebaseapp.com,https://flowdesk.ia.br
+WEB_ORIGIN=https://flowdesk.ia.br
 
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...    # passo 4
@@ -96,4 +97,4 @@ Stripe → **Settings** → **Billing** → **Customer portal** → ativar e sal
 | Webhook 400 | `STRIPE_WEBHOOK_SECRET` vazio ou errado na VM |
 | Checkout não abre | `NEXT_PUBLIC_API_URL` no front não aponta para a VM |
 | Pagou, plano não mudou | Webhook URL errada ou Payment Links ativos no front |
-| CORS no checkout | `CORS_ORIGIN` na VM sem URL do Firebase Hosting |
+| CORS no checkout / “não conectou à API” | `CORS_ORIGIN` na VM sem a URL do painel (ex.: `https://flowdesk.ia.br`) |
