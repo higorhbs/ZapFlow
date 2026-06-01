@@ -164,6 +164,51 @@ function EmojiPickerBalloon({
   );
 }
 
+function ToggleRow({
+  label,
+  hint,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  hint: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3.5",
+        disabled && "opacity-50"
+      )}
+    >
+      <div>
+        <p className="text-sm font-medium text-gray-900">{label}</p>
+        <p className="text-xs text-gray-500 mt-0.5">{hint}</p>
+      </div>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && onChange(!checked)}
+        className={cn(
+          "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 mt-0.5",
+          checked ? "bg-brand-600" : "bg-gray-200",
+          disabled && "cursor-not-allowed"
+        )}
+      >
+        <span
+          className={cn(
+            "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200",
+            checked ? "translate-x-5" : "translate-x-0"
+          )}
+        />
+      </button>
+    </div>
+  );
+}
+
 // ── BotMenuEditor ──────────────────────────────────────────────────────────────
 function BotMenuEditor({
   businessId,
@@ -173,8 +218,8 @@ function BotMenuEditor({
   initialGreetingMsg,
   initialMenuEnabled,
   initialGreetingEnabled,
-  initialAutoReplyEnabled,
   initialThanksMsg,
+  autoReplyEnabled,
 }: {
   businessId: string;
   initialMenu: BotMenuItemConfig[];
@@ -183,13 +228,12 @@ function BotMenuEditor({
   initialGreetingMsg: string;
   initialMenuEnabled: boolean;
   initialGreetingEnabled: boolean;
-  initialAutoReplyEnabled: boolean;
   initialThanksMsg: string;
+  autoReplyEnabled: boolean;
 }) {
   const v = getBusinessVocabulary(businessType);
   const queryClient = useQueryClient();
   const [items, setItems] = useState<BotMenuItemConfig[]>(initialMenu);
-  const [autoReplyEnabled, setAutoReplyEnabled] = useState(initialAutoReplyEnabled);
   const [menuEnabled, setMenuEnabled] = useState(initialMenuEnabled);
   const [greetingEnabled, setGreetingEnabled] = useState(initialGreetingEnabled);
   const [greetingMsg, setGreetingMsg] = useState(initialGreetingMsg);
@@ -273,51 +317,6 @@ function BotMenuEditor({
     greetingMsg,
   });
   const showPreview = previewLines !== null;
-
-  function ToggleRow({
-    label,
-    hint,
-    checked,
-    onChange,
-    disabled,
-  }: {
-    label: string;
-    hint: string;
-    checked: boolean;
-    onChange: (v: boolean) => void;
-    disabled?: boolean;
-  }) {
-    return (
-      <div
-        className={cn(
-          "flex items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3.5",
-          disabled && "opacity-50"
-        )}
-      >
-        <div>
-          <p className="text-sm font-medium text-gray-900">{label}</p>
-          <p className="text-xs text-gray-500 mt-0.5">{hint}</p>
-        </div>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => !disabled && onChange(!checked)}
-          className={cn(
-            "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 mt-0.5",
-            checked ? "bg-brand-600" : "bg-gray-200",
-            disabled && "cursor-not-allowed"
-          )}
-        >
-          <span
-            className={cn(
-              "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200",
-              checked ? "translate-x-5" : "translate-x-0"
-            )}
-          />
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className={cn("grid gap-8", showPreview && "lg:grid-cols-[1fr_320px]")}>
@@ -432,20 +431,6 @@ function BotMenuEditor({
       {/* Editor */}
       <div>
         <div className="space-y-3 mb-6">
-          <div
-            className={cn(
-              "rounded-2xl border-2 px-4 py-4 transition-colors",
-              autoReplyEnabled ? "border-brand-200 bg-brand-50/50" : "border-amber-200 bg-amber-50"
-            )}
-          >
-            <ToggleRow
-              label="Respostas automáticas da IA"
-              hint="Desligado: a IA não envia nada (menu, FAQ, saudação, fora do horário). As mensagens do cliente continuam no painel de Conversas."
-              checked={autoReplyEnabled}
-              onChange={setAutoReplyEnabled}
-            />
-          </div>
-
           <ToggleRow
             label="Saudação inicial"
             hint="Mensagem de boas-vindas antes do menu ou das respostas automáticas."
@@ -492,13 +477,7 @@ function BotMenuEditor({
           </div>
         </div>
 
-        {!autoReplyEnabled && (
-          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5">
-            Respostas automáticas desligadas — ative o interruptor acima ou responda manualmente em Conversas.
-          </p>
-        )}
-
-        {menuEnabled && autoReplyEnabled ? (
+        {menuEnabled ? (
           <>
         <p className="text-sm text-gray-500 mb-5">
           Cada opção tem um <strong className="font-medium text-gray-700">nome</strong> que aparece no menu e uma{" "}
@@ -1107,8 +1086,10 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
 export default function BotPage() {
   const businessId = useBusinessId();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const { pixEnabled } = usePlanAllowsPix();
   const [tab, setTab] = useState<Tab>("menu");
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(true);
 
   useEffect(() => {
     if (searchParams.get("sec") === "pix" && pixEnabled) setTab("payments");
@@ -1118,6 +1099,44 @@ export default function BotPage() {
     queryKey: ["business", businessId],
     queryFn: () => businessApi.get(businessId),
   });
+
+  useEffect(() => {
+    if (!business) return;
+    setAutoReplyEnabled((business as { botAutoReplyEnabled?: boolean }).botAutoReplyEnabled !== false);
+  }, [business]);
+
+  const autoReplyMutation = useMutation({
+    mutationFn: (enabled: boolean) =>
+      businessApi.update(businessId, { botAutoReplyEnabled: enabled } as Record<string, unknown>),
+    onSuccess: (_data, enabled) => {
+      void queryClient.invalidateQueries({ queryKey: ["business", businessId] });
+      toast.success(
+        enabled
+          ? "Respostas automáticas ativadas — configure menu e perguntas abaixo."
+          : "Respostas automáticas desativadas."
+      );
+    },
+    onError: () => toast.error("Erro ao atualizar respostas automáticas"),
+  });
+
+  const iaTabs = autoReplyEnabled
+    ? ([
+        { id: "menu" as const, label: "Menu da IA", icon: MessageSquare },
+        ...(pixEnabled
+          ? [{ id: "payments" as const, label: "Pagamentos por PIX", icon: Banknote }]
+          : []),
+        { id: "faqs" as const, label: "Perguntas & Respostas", icon: HelpCircle },
+      ] as const)
+    : pixEnabled
+      ? ([{ id: "payments" as const, label: "Pagamentos por PIX", icon: Banknote }] as const)
+      : [];
+
+  useEffect(() => {
+    if (autoReplyEnabled) return;
+    if (tab === "menu" || tab === "faqs") {
+      setTab(pixEnabled ? "payments" : "menu");
+    }
+  }, [autoReplyEnabled, tab, pixEnabled]);
 
   const { data: tenant } = useQuery({
     queryKey: ["tenant"],
@@ -1148,38 +1167,57 @@ export default function BotPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-1 p-1.5 bg-gray-100 rounded-2xl w-fit mb-8 shadow-inner">
-        {([
-          { id: "menu" as const, label: "Menu da IA", icon: MessageSquare },
-          ...(pixEnabled
-            ? [{ id: "payments" as const, label: "Pagamentos por PIX", icon: Banknote }]
-            : []),
-          { id: "faqs" as const, label: "Perguntas & Respostas", icon: HelpCircle },
-        ]).map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className={cn(
-              "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-              tab === id
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            )}
-          >
-            <Icon className={cn("w-4 h-4", tab === id ? "text-brand-600" : "text-gray-400")} />
-            {label}
-          </button>
-        ))}
+      <div
+        className={cn(
+          "mb-6 rounded-2xl border-2 px-4 py-4 transition-colors",
+          autoReplyEnabled ? "border-brand-200 bg-brand-50/50" : "border-amber-200 bg-amber-50"
+        )}
+      >
+        <ToggleRow
+          label="Respostas automáticas da IA"
+          hint="Desligado: a IA não envia nada no WhatsApp. Ligado: configure o menu e as perguntas nas abas abaixo."
+          checked={autoReplyEnabled}
+          disabled={autoReplyMutation.isPending || isLoading}
+          onChange={(enabled) => {
+            setAutoReplyEnabled(enabled);
+            autoReplyMutation.mutate(enabled);
+          }}
+        />
       </div>
 
-      {/* Content */}
+      {!autoReplyEnabled && (
+        <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6">
+          Com as respostas desligadas, o menu e as perguntas ficam ocultos. Ative o interruptor acima
+          para configurá-los, ou responda manualmente em Conversas.
+        </p>
+      )}
+
+      {iaTabs.length > 0 && (
+        <div className="flex flex-wrap gap-1 p-1.5 bg-gray-100 rounded-2xl w-fit mb-8 shadow-inner">
+          {iaTabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className={cn(
+                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
+                tab === id
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              )}
+            >
+              <Icon className={cn("w-4 h-4", tab === id ? "text-brand-600" : "text-gray-400")} />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center h-48">
           <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
         </div>
-      ) : tab === "menu" ? (
+      ) : !autoReplyEnabled && !pixEnabled ? null : tab === "menu" && autoReplyEnabled ? (
         <BotMenuEditor
           businessId={businessId}
           initialMenu={initialMenu}
@@ -1188,19 +1226,17 @@ export default function BotPage() {
           initialGreetingMsg={business?.greetingMsg ?? "Olá {nome}! Bem-vindo ao {negocio} 😊 Como posso ajudar?"}
           initialMenuEnabled={(business as { botMenuEnabled?: boolean })?.botMenuEnabled !== false}
           initialGreetingEnabled={(business as { greetingEnabled?: boolean })?.greetingEnabled !== false}
-          initialAutoReplyEnabled={
-            (business as { botAutoReplyEnabled?: boolean })?.botAutoReplyEnabled !== false
-          }
           initialThanksMsg={
             (business as { thanksMsg?: string })?.thanksMsg?.trim() ||
             DEFAULT_THANKS_MSG
           }
+          autoReplyEnabled={autoReplyEnabled}
         />
-      ) : tab === "payments" ? (
+      ) : tab === "payments" && pixEnabled ? (
         <PaymentsPixPanel businessId={businessId} />
-      ) : (
+      ) : tab === "faqs" && autoReplyEnabled ? (
         <FAQsEditor businessId={businessId} businessType={business?.type} />
-      )}
+      ) : null}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AppLink as Link } from "@/components/AppLink";
 import { usePathname } from "next/navigation";
 import {
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn, getBusinessTypeLabel } from "@/lib/utils";
 import { APP_DISPLAY_NAME } from "@flowdesk/shared";
+import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
 import { signOutAndReset } from "@/lib/session-reset";
 import { useAppRouter } from "@/lib/app-navigation";
 import { SidebarProfile } from "./SidebarProfile";
@@ -45,6 +47,8 @@ export function Sidebar() {
   const { pixEnabled } = usePlanAllowsPix();
 
   const queryClient = useQueryClient();
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
 
   const { data: business } = useQuery({
     queryKey: ["business", businessId],
@@ -92,9 +96,15 @@ export function Sidebar() {
       ]
     : [];
 
-  async function handleLogout() {
-    await signOutAndReset(queryClient);
-    router.push("/");
+  async function confirmLogout() {
+    setLogoutLoading(true);
+    try {
+      await signOutAndReset(queryClient);
+      setLogoutOpen(false);
+      router.push("/");
+    } finally {
+      setLogoutLoading(false);
+    }
   }
 
   const businessInitials = business?.name
@@ -267,13 +277,20 @@ export function Sidebar() {
         )}
         <SidebarProfile />
         <button
-          onClick={handleLogout}
+          type="button"
+          onClick={() => setLogoutOpen(true)}
           className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-colors"
         >
           <LogOut className="w-4 h-4" />
           Sair
         </button>
       </div>
+      <LogoutConfirmDialog
+        open={logoutOpen}
+        onOpenChange={setLogoutOpen}
+        onConfirm={confirmLogout}
+        loading={logoutLoading}
+      />
     </aside>
   );
 }

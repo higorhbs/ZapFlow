@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Loader2, MailCheck, RefreshCw, LogOut } from "lucide-react";
 import { watchAuth, resendVerificationEmail, refreshVerifiedSession } from "@/lib/firebase-auth";
 import { setToken } from "@/lib/auth";
+import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
 import { signOutAndReset } from "@/lib/session-reset";
 import { Button } from "@/components/ui/button";
 
@@ -13,6 +14,8 @@ export function EmailVerificationBanner() {
   const router = useRouter();
   const [loadingResend, setLoadingResend] = useState(false);
   const [loadingConfirm, setLoadingConfirm] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,9 +57,15 @@ export function EmailVerificationBanner() {
     }
   }
 
-  async function handleLogout() {
-    await signOutAndReset();
-    toast.message("Sessão encerrada.");
+  async function confirmLogout() {
+    setLogoutLoading(true);
+    try {
+      await signOutAndReset();
+      setLogoutOpen(false);
+      toast.message("Sessão encerrada.");
+    } finally {
+      setLogoutLoading(false);
+    }
   }
 
   return (
@@ -83,13 +92,25 @@ export function EmailVerificationBanner() {
               {loadingConfirm ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailCheck className="h-4 w-4" />}
               Já confirmei
             </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={handleLogout} disabled={loadingResend || loadingConfirm}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setLogoutOpen(true)}
+              disabled={loadingResend || loadingConfirm || logoutLoading}
+            >
               <LogOut className="h-4 w-4" />
               Sair
             </Button>
           </div>
         </div>
       </div>
+      <LogoutConfirmDialog
+        open={logoutOpen}
+        onOpenChange={setLogoutOpen}
+        onConfirm={confirmLogout}
+        loading={logoutLoading}
+      />
     </div>
   );
 }
