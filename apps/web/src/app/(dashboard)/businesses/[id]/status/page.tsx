@@ -204,6 +204,12 @@ export default function StatusSchedulePage() {
             O status será visível para contatos que já conversaram com você no FlowDesk. Mantenha o
             agente WhatsApp online no horário agendado.
           </p>
+          <p className="text-xs text-gray-500 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
+            Para conferir a arte: abra o link da mídia no histórico após publicar, ou veja em{" "}
+            <strong>Status</strong> no celular (aba Status, não só o preview do perfil). Pelo
+            WhatsApp Web/API pode aparecer &quot;aguardando atualização&quot; por alguns minutos
+            mesmo com o status no ar.
+          </p>
 
           <Button
             className="w-full"
@@ -292,6 +298,16 @@ function StatusRow({
         )}
         {row.error && (
           <p className="text-xs text-red-600 mt-1">{row.error}</p>
+        )}
+        {row.status === "published" && row.mediaUrl && (
+          <a
+            href={row.mediaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-brand-600 hover:underline mt-1 inline-block"
+          >
+            Abrir prévia da arte
+          </a>
         )}
       </div>
       {onCancel && row.status === "scheduled" && (
