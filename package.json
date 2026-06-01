@@ -20,6 +20,7 @@
     "setup:billing-env": "node scripts/setup-billing-env.mjs",
     "setup:github-deploy": "node scripts/setup-github-deploy-secrets.mjs",
     "setup:server-env": "node scripts/setup-server-env.mjs",
+    "setup:vm-env": "node scripts/generate-vm-env.mjs",
     "oracle:setup-billing": "bash scripts/oracle/setup-billing-vm.sh"
   },
   "devDependencies": {

@@ -19,11 +19,17 @@ function loadEnv(filePath) {
 }
 
 const env = loadEnv(resolve(root, ".env"));
-const apiDomain = env.API_DOMAIN?.trim();
+const waUrlDirect =
+  env.NEXT_PUBLIC_WA_API_URL?.trim() || env.WA_API_PUBLIC_URL?.trim() || "";
+const apiDomain = (
+  waUrlDirect ||
+  env.BILLING_API_DOMAIN ||
+  env.API_DOMAIN
+)?.trim();
 
 if (!apiDomain) {
-  console.error("\n❌ Defina API_DOMAIN no .env da raiz (domínio da VM, ex: api.seudominio.com)");
-  console.error("   Depois rode: node scripts/setup-billing-env.mjs\n");
+  console.error("\n❌ Defina BILLING_API_DOMAIN ou API_DOMAIN no .env da raiz");
+  console.error("   Depois rode: pnpm setup:billing-env\n");
   process.exit(1);
 }
 
