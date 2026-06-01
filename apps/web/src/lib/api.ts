@@ -34,7 +34,9 @@ import {
   getClientAnalytics,
   listClientScheduledStatuses,
   createClientScheduledStatus,
+  repostClientScheduledStatus,
   cancelClientScheduledStatus,
+  cancelClientScheduledStatusSeries,
 } from "@flowdesk/firebase/client";
 import type {
   Plan,
@@ -361,11 +363,20 @@ export const scheduledStatusApi = {
       mediaUrl: string;
       mediaType: ScheduledStatusMediaType;
       caption?: string;
-      scheduledAt: string;
+      scheduledDays: string[];
+      hour: number;
+      minute: number;
     }
   ) => createClientScheduledStatus(businessId, requireUid(), data),
+  repost: (
+    businessId: string,
+    statusId: string,
+    data: { scheduledDays: string[]; hour: number; minute: number }
+  ) => repostClientScheduledStatus(businessId, requireUid(), statusId, data),
   cancel: (businessId: string, statusId: string) =>
     cancelClientScheduledStatus(businessId, requireUid(), statusId),
+  cancelSeries: (businessId: string, seriesId: string) =>
+    cancelClientScheduledStatusSeries(businessId, requireUid(), seriesId),
 };
 
 export type { ScheduledStatus };

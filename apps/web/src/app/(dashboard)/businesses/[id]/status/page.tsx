@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -20,13 +20,14 @@ import {
   Video,
   CheckCircle2,
   XCircle,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
   X,
   Play,
   Send,
+  RotateCcw,
 } from "lucide-react";
+import { StatusMultiDayPicker } from "@/components/status/StatusMultiDayPicker";
+import { RepostStatusModal } from "@/components/status/RepostStatusModal";
+import { dateDayKey } from "@flowdesk/firebase/client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -42,13 +43,6 @@ const STATUS_LABEL: Record<ScheduledStatus["status"], string> = {
   cancelled: "Cancelado",
 };
 
-const MONTH_NAMES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-];
-
-const pad = (n: number) => String(n).padStart(2, "0");
-
 function defaultSchedule(): Date {
   const d = new Date(Date.now() + 15 * 60_000);
   d.setSeconds(0, 0);
@@ -60,32 +54,17 @@ export default function StatusSchedulePage() {
   const { ready, uid } = useAuth();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
-  const hourRef = useRef<HTMLDivElement>(null);
-  const minuteRef = useRef<HTMLDivElement>(null);
-  const dragState = useRef<{ startY: number; startScrollTop: number } | null>(null);
-  const didDragRef = useRef(false);
-  const minuteDragState = useRef<{ startY: number; startScrollTop: number } | null>(null);
-  const minuteDidDragRef = useRef(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
 
-  const [selectedDate, setSelectedDate] = useState<Date>(() => defaultSchedule());
-  const [selectedHour, setSelectedHour] = useState<number>(() => defaultSchedule().getHours());
-  const [selectedMinute, setSelectedMinute] = useState<number>(() => defaultSchedule().getMinutes());
-  const [viewMonth, setViewMonth] = useState<{ year: number; month: number }>(() => {
-    const d = defaultSchedule();
-    return { year: d.getFullYear(), month: d.getMonth() };
-  });
-
-  // Snapshot of "now" at mount — used for past-time disabling
+  const initialSchedule = useMemo(() => defaultSchedule(), []);
+  const [selectedDayKeys, setSelectedDayKeys] = useState<string[]>(() => [
+    dateDayKey(initialSchedule),
+  ]);
+  const [selectedHour, setSelectedHour] = useState<number>(() => initialSchedule.getHours());
+  const [selectedMinute, setSelectedMinute] = useState<number>(() => initialSchedule.getMinutes());
   const mountedAt = useMemo(() => new Date(), []);
-
-  // Scroll columns to center the initially selected values
-  useEffect(() => {
-    if (hourRef.current) hourRef.current.scrollTop = selectedHour * 40;
-    if (minuteRef.current) minuteRef.current.scrollTop = selectedMinute * 40;
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { connected } = useSyncWhatsAppBusiness(businessId);
 
@@ -106,27 +85,27 @@ export default function StatusSchedulePage() {
     mutationFn: async () => {
       if (!file) throw new Error("Selecione uma imagem ou vídeo.");
       const { mediaUrl, mediaType } = await scheduledStatusApi.upload(businessId, file);
-      const dateStr = `${selectedDate.getFullYear()}-${pad(selectedDate.getMonth() + 1)}-${pad(selectedDate.getDate())}T${pad(selectedHour)}:${pad(selectedMinute)}`;
-      const scheduledAt = new Date(dateStr).toISOString();
+      if (selectedDayKeys.length === 0) throw new Error("Selecione pelo menos um dia no calendário.");
       return scheduledStatusApi.create(businessId, {
         mediaUrl,
         mediaType,
         caption: caption.trim() || undefined,
-        scheduledAt,
+        scheduledDays: selectedDayKeys,
+        hour: selectedHour,
+        minute: selectedMinute,
       });
     },
-    onSuccess: () => {
+    onSuccess: (rows) => {
       void queryClient.invalidateQueries({ queryKey: ["scheduled-status", businessId] });
       setFile(null);
       setPreview(null);
       setCaption("");
       const next = defaultSchedule();
-      setSelectedDate(next);
+      setSelectedDayKeys([dateDayKey(next)]);
       setSelectedHour(next.getHours());
       setSelectedMinute(next.getMinutes());
-      setViewMonth({ year: next.getFullYear(), month: next.getMonth() });
       if (fileRef.current) fileRef.current.value = "";
-      toast.success("Status agendado!");
+      toast.success(rows.length > 1 ? `${rows.length} stories agendados!` : "Status agendado!");
     },
     onError: (err: Error) => toast.error(err.message ?? "Erro ao agendar"),
   });
@@ -140,8 +119,26 @@ export default function StatusSchedulePage() {
     onError: (err: Error) => toast.error(err.message ?? "Erro ao cancelar"),
   });
 
+  const cancelSeriesMutation = useMutation({
+    mutationFn: (seriesId: string) => scheduledStatusApi.cancelSeries(businessId, seriesId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["scheduled-status", businessId] });
+      toast.success("Série cancelada");
+    },
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao cancelar série"),
+  });
+
   const pending = useMemo(() => items.filter((i) => i.status === "scheduled"), [items]);
   const history = useMemo(() => items.filter((i) => i.status !== "scheduled"), [items]);
+
+  const seriesPendingCount = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const i of pending) {
+      if (!i.seriesId) continue;
+      m.set(i.seriesId, (m.get(i.seriesId) ?? 0) + 1);
+    }
+    return m;
+  }, [pending]);
 
   function onPickFile(f: File | null) {
     setFile(f);
@@ -149,103 +146,6 @@ export default function StatusSchedulePage() {
     if (!f) { setPreview(null); return; }
     setPreview(URL.createObjectURL(f));
   }
-
-  const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }, []);
-
-  const isSelectedToday = useMemo(() => {
-    const d = new Date(selectedDate);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime() === today.getTime();
-  }, [selectedDate, today]);
-
-  function handleDateSelect(date: Date) {
-    setSelectedDate(date);
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    if (d.getTime() === today.getTime()) {
-      const nowH = mountedAt.getHours();
-      const nowM = mountedAt.getMinutes();
-      if (selectedHour < nowH || (selectedHour === nowH && selectedMinute < nowM)) {
-        const newM = nowM + 1 >= 60 ? 0 : nowM + 1;
-        const newH = nowM + 1 >= 60 ? Math.min(nowH + 1, 23) : nowH;
-        setSelectedHour(newH);
-        setSelectedMinute(newM);
-        hourRef.current?.scrollTo({ top: newH * 40, behavior: "smooth" });
-        minuteRef.current?.scrollTo({ top: newM * 40, behavior: "smooth" });
-      }
-    }
-  }
-
-  const summary = useMemo(() => {
-    const d = new Date(selectedDate);
-    d.setHours(0, 0, 0, 0);
-    const diff = Math.round((d.getTime() - today.getTime()) / 86_400_000);
-    const t = `${pad(selectedHour)}:${pad(selectedMinute)}`;
-    if (diff === 0) return `Hoje às ${t}`;
-    if (diff === 1) return `Amanhã às ${t}`;
-    return `${format(selectedDate, "EEE, dd 'de' MMMM", { locale: ptBR })} às ${t}`;
-  }, [selectedDate, selectedHour, selectedMinute, today]);
-
-  function onHourPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    didDragRef.current = false;
-    dragState.current = { startY: e.clientY, startScrollTop: hourRef.current?.scrollTop ?? 0 };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
-
-  function onHourPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!dragState.current || !hourRef.current) return;
-    const dy = e.clientY - dragState.current.startY;
-    if (Math.abs(dy) > 4) didDragRef.current = true;
-    hourRef.current.scrollTop = dragState.current.startScrollTop - dy;
-  }
-
-  function onHourPointerUp() {
-    if (!dragState.current || !hourRef.current) return;
-    dragState.current = null;
-    if (!didDragRef.current) return;
-    const nearest = Math.max(0, Math.min(23, Math.round(hourRef.current.scrollTop / 40)));
-    setSelectedHour(nearest);
-    hourRef.current.scrollTo({ top: nearest * 40, behavior: "smooth" });
-  }
-
-  function onMinutePointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    minuteDidDragRef.current = false;
-    minuteDragState.current = { startY: e.clientY, startScrollTop: minuteRef.current?.scrollTop ?? 0 };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
-
-  function onMinutePointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!minuteDragState.current || !minuteRef.current) return;
-    const dy = e.clientY - minuteDragState.current.startY;
-    if (Math.abs(dy) > 4) minuteDidDragRef.current = true;
-    minuteRef.current.scrollTop = minuteDragState.current.startScrollTop - dy;
-  }
-
-  function onMinutePointerUp() {
-    if (!minuteDragState.current || !minuteRef.current) return;
-    minuteDragState.current = null;
-    if (!minuteDidDragRef.current) return;
-    const nearest = Math.max(0, Math.min(59, Math.round(minuteRef.current.scrollTop / 40)));
-    setSelectedMinute(nearest);
-    minuteRef.current.scrollTo({ top: nearest * 40, behavior: "smooth" });
-  }
-
-  const calendarCells = useMemo(() => {
-    const firstDay = new Date(viewMonth.year, viewMonth.month, 1);
-    const startDow = firstDay.getDay();
-    const daysInMonth = new Date(viewMonth.year, viewMonth.month + 1, 0).getDate();
-    const cells: (Date | null)[] = [];
-    for (let i = 0; i < startDow; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth; d++) {
-      cells.push(new Date(viewMonth.year, viewMonth.month, d));
-    }
-    while (cells.length % 7 !== 0) cells.push(null);
-    return cells;
-  }, [viewMonth]);
 
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
@@ -329,203 +229,15 @@ export default function StatusSchedulePage() {
             />
           </div>
 
-          {/* Date/Time picker */}
-          <div>
-            <Label className="block mb-3">Publicar em</Label>
-
-            {/* Summary pill */}
-            <div className="flex items-center gap-2.5 mb-4 px-4 py-2.5 rounded-xl bg-brand-50 border border-brand-100">
-              <CalendarClock className="w-4 h-4 text-brand-600 flex-shrink-0" />
-              <span className="text-sm font-semibold text-brand-800 capitalize">{summary}</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-
-              {/* Calendar */}
-              <div className="border border-gray-100 rounded-2xl p-4 bg-gray-50/40">
-                {/* Month nav */}
-                <div className="flex items-center justify-between mb-3">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setViewMonth((v) =>
-                        v.month === 0
-                          ? { year: v.year - 1, month: 11 }
-                          : { year: v.year, month: v.month - 1 }
-                      )
-                    }
-                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm transition-all"
-                  >
-                    <ChevronLeft className="w-4 h-4 text-gray-500" />
-                  </button>
-                  <span className="text-sm font-semibold text-gray-800">
-                    {MONTH_NAMES[viewMonth.month]} {viewMonth.year}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setViewMonth((v) =>
-                        v.month === 11
-                          ? { year: v.year + 1, month: 0 }
-                          : { year: v.year, month: v.month + 1 }
-                      )
-                    }
-                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm transition-all"
-                  >
-                    <ChevronRight className="w-4 h-4 text-gray-500" />
-                  </button>
-                </div>
-
-                {/* Weekday headers */}
-                <div className="grid grid-cols-7 mb-1">
-                  {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => (
-                    <div key={i} className="text-center text-[11px] text-gray-400 font-medium py-1">
-                      {d}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Days grid */}
-                <div className="grid grid-cols-7 gap-0.5">
-                  {calendarCells.map((date, i) => {
-                    if (!date) return <div key={i} />;
-                    const isPast = date < today;
-                    const isSelected = date.toDateString() === selectedDate.toDateString();
-                    const isTodayCell = date.toDateString() === today.toDateString();
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        disabled={isPast}
-                        onClick={() => handleDateSelect(date)}
-                        className={cn(
-                          "aspect-square text-xs rounded-lg flex items-center justify-center transition-all font-medium",
-                          isPast && "text-gray-300 cursor-not-allowed",
-                          !isPast && !isSelected && "text-gray-700 hover:bg-brand-100 hover:text-brand-800",
-                          isTodayCell && !isSelected && "text-brand-600 font-bold ring-1 ring-brand-300",
-                          isSelected && "bg-brand-600 text-white shadow-md scale-105",
-                        )}
-                      >
-                        {date.getDate()}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Time picker */}
-              <div className="border border-gray-100 rounded-2xl p-4 bg-gray-50/40 flex flex-col gap-3">
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-gray-400" />
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Horário</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-
-                  {/* Hours — scrollable column */}
-                  <div className="flex flex-col gap-1.5">
-                    <p className="text-center text-[11px] text-gray-400 font-medium tracking-wide">Hora</p>
-                    <div className="relative">
-                      {/* Fade top */}
-                      <div className="absolute top-0 inset-x-0 h-8 bg-gradient-to-b from-gray-50 to-transparent pointer-events-none z-10 rounded-t-xl" />
-                      {/* Fade bottom */}
-                      <div className="absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none z-10 rounded-b-xl" />
-                      {/* Highlight band */}
-                      <div className="absolute top-1/2 -translate-y-1/2 inset-x-0 h-10 bg-brand-50/60 border-y border-brand-100 pointer-events-none z-0" />
-                      <div
-                        ref={hourRef}
-                        className="h-40 overflow-y-auto [&::-webkit-scrollbar]:hidden cursor-grab active:cursor-grabbing select-none"
-                        style={{ scrollbarWidth: "none" }}
-                        onPointerDown={onHourPointerDown}
-                        onPointerMove={onHourPointerMove}
-                        onPointerUp={onHourPointerUp}
-                        onPointerCancel={onHourPointerUp}
-                      >
-                        {/* Top spacer so first item can center */}
-                        <div className="h-[60px]" />
-                        {Array.from({ length: 24 }, (_, h) => {
-                          const isDisabled = isSelectedToday && h < mountedAt.getHours();
-                          const isSelected = h === selectedHour;
-                          return (
-                            <button
-                              key={h}
-                              type="button"
-                              disabled={isDisabled}
-                              onClick={() => {
-                                if (didDragRef.current) return;
-                                setSelectedHour(h);
-                                hourRef.current?.scrollTo({ top: h * 40, behavior: "smooth" });
-                              }}
-                              className={cn(
-                                "relative z-10 w-full h-10 flex items-center justify-center text-sm rounded-xl transition-all font-semibold",
-                                isDisabled && "text-gray-200 cursor-not-allowed",
-                                !isDisabled && !isSelected && "text-gray-400 hover:text-gray-700",
-                                isSelected && "text-brand-700 text-base",
-                              )}
-                            >
-                              {pad(h)}
-                            </button>
-                          );
-                        })}
-                        {/* Bottom spacer */}
-                        <div className="h-[60px]" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Minutes — scrollable column (0–59) */}
-                  <div className="flex flex-col gap-1.5">
-                    <p className="text-center text-[11px] text-gray-400 font-medium tracking-wide">Minuto</p>
-                    <div className="relative">
-                      <div className="absolute top-0 inset-x-0 h-8 bg-gradient-to-b from-gray-50 to-transparent pointer-events-none z-10 rounded-t-xl" />
-                      <div className="absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none z-10 rounded-b-xl" />
-                      <div className="absolute top-1/2 -translate-y-1/2 inset-x-0 h-10 bg-brand-50/60 border-y border-brand-100 pointer-events-none z-0" />
-                      <div
-                        ref={minuteRef}
-                        className="h-40 overflow-y-auto [&::-webkit-scrollbar]:hidden cursor-grab active:cursor-grabbing select-none"
-                        style={{ scrollbarWidth: "none" }}
-                        onPointerDown={onMinutePointerDown}
-                        onPointerMove={onMinutePointerMove}
-                        onPointerUp={onMinutePointerUp}
-                        onPointerCancel={onMinutePointerUp}
-                      >
-                        <div className="h-[60px]" />
-                        {Array.from({ length: 60 }, (_, m) => {
-                          const isDisabled =
-                            isSelectedToday &&
-                            selectedHour === mountedAt.getHours() &&
-                            m < mountedAt.getMinutes();
-                          const isSelected = m === selectedMinute;
-                          return (
-                            <button
-                              key={m}
-                              type="button"
-                              disabled={isDisabled}
-                              onClick={() => {
-                                if (minuteDidDragRef.current) return;
-                                setSelectedMinute(m);
-                                minuteRef.current?.scrollTo({ top: m * 40, behavior: "smooth" });
-                              }}
-                              className={cn(
-                                "relative z-10 w-full h-10 flex items-center justify-center text-sm rounded-xl transition-all font-semibold",
-                                isDisabled && "text-gray-200 cursor-not-allowed",
-                                !isDisabled && !isSelected && "text-gray-400 hover:text-gray-700",
-                                isSelected && "text-brand-700 text-base",
-                              )}
-                            >
-                              :{pad(m)}
-                            </button>
-                          );
-                        })}
-                        <div className="h-[60px]" />
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            </div>
-          </div>
+          <StatusMultiDayPicker
+            selectedDayKeys={selectedDayKeys}
+            onSelectedDayKeysChange={setSelectedDayKeys}
+            selectedHour={selectedHour}
+            selectedMinute={selectedMinute}
+            onHourChange={setSelectedHour}
+            onMinuteChange={setSelectedMinute}
+            mountedAt={mountedAt}
+          />
 
           <p className="text-xs text-gray-500">
             O status será visível para contatos que já conversaram com você no FlowDesk. Mantenha o
@@ -540,7 +252,7 @@ export default function StatusSchedulePage() {
 
           <Button
             className="w-full"
-            disabled={!file || createMutation.isPending}
+            disabled={!file || createMutation.isPending || selectedDayKeys.length === 0}
             onClick={() => createMutation.mutate()}
           >
             {createMutation.isPending ? (
@@ -570,9 +282,19 @@ export default function StatusSchedulePage() {
               <StatusRow
                 key={row.id}
                 row={row}
+                businessId={businessId}
                 businessName={business?.name ?? ""}
+                seriesPendingCount={row.seriesId ? seriesPendingCount.get(row.seriesId) : undefined}
                 onCancel={() => cancelMutation.mutate(row.id)}
-                cancelling={cancelMutation.isPending}
+                onCancelSeries={
+                  row.seriesId && (seriesPendingCount.get(row.seriesId) ?? 0) > 1
+                    ? () => cancelSeriesMutation.mutate(row.seriesId!)
+                    : undefined
+                }
+                cancelling={cancelMutation.isPending || cancelSeriesMutation.isPending}
+                onReposted={() =>
+                  void queryClient.invalidateQueries({ queryKey: ["scheduled-status", businessId] })
+                }
               />
             ))}
           </ul>
@@ -584,7 +306,15 @@ export default function StatusSchedulePage() {
           <h2 className="font-semibold text-gray-900 mb-3">Histórico</h2>
           <ul className="space-y-3">
             {history.map((row) => (
-              <StatusRow key={row.id} row={row} businessName={business?.name ?? ""} />
+              <StatusRow
+                key={row.id}
+                row={row}
+                businessId={businessId}
+                businessName={business?.name ?? ""}
+                onReposted={() =>
+                  void queryClient.invalidateQueries({ queryKey: ["scheduled-status", businessId] })
+                }
+              />
             ))}
           </ul>
         </section>
@@ -593,20 +323,32 @@ export default function StatusSchedulePage() {
   );
 }
 
+const REPOSTABLE: ScheduledStatus["status"][] = ["published", "failed", "cancelled"];
+
 function StatusRow({
   row,
+  businessId,
   businessName = "",
+  seriesPendingCount,
   onCancel,
+  onCancelSeries,
   cancelling,
+  onReposted,
 }: {
   row: ScheduledStatus;
+  businessId: string;
   businessName?: string;
+  seriesPendingCount?: number;
   onCancel?: () => void;
+  onCancelSeries?: () => void;
   cancelling?: boolean;
+  onReposted?: () => void;
 }) {
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [repostOpen, setRepostOpen] = useState(false);
   const when = format(new Date(row.scheduledAt), "dd/MM/yyyy HH:mm", { locale: ptBR });
   const isVideo = row.mediaType === "video";
+  const canRepost = REPOSTABLE.includes(row.status);
 
   return (
     <li className="flex gap-3 p-3 rounded-xl border border-gray-100 bg-white shadow-sm">
@@ -631,31 +373,72 @@ function StatusRow({
         {row.error && (
           <p className="text-xs text-red-600 mt-1">{row.error}</p>
         )}
-        {row.status === "published" && row.mediaUrl && (
-          <button
-            type="button"
-            onClick={() => setPreviewOpen(true)}
-            className="text-xs text-brand-600 hover:text-brand-800 hover:underline mt-1 inline-flex items-center gap-1 transition-colors"
-          >
-            <Play className="w-3 h-3" />
-            Ver prévia no WhatsApp
-          </button>
+        {seriesPendingCount != null && seriesPendingCount > 1 && (
+          <p className="text-xs text-brand-700 mt-1">Série · {seriesPendingCount} na fila</p>
+        )}
+        {row.sourceStatusId && row.status === "scheduled" && (
+          <p className="text-xs text-gray-500 mt-0.5">Republicação agendada</p>
+        )}
+        {(canRepost || (row.status === "published" && row.mediaUrl)) && (
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2.5 pt-2.5 border-t border-gray-100">
+            {canRepost && (
+              <button
+                type="button"
+                onClick={() => setRepostOpen(true)}
+                className="text-xs font-medium text-brand-700 hover:text-brand-900 inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50/80 px-2.5 py-1.5 hover:bg-brand-100 transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5 flex-shrink-0" />
+                Reagendar / repetir
+              </button>
+            )}
+            {row.status === "published" && row.mediaUrl && (
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(true)}
+                className="text-xs font-medium text-gray-700 hover:text-gray-900 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 hover:bg-gray-100 transition-colors"
+              >
+                <Play className="w-3.5 h-3.5 flex-shrink-0" />
+                Ver prévia no WhatsApp
+              </button>
+            )}
+          </div>
         )}
       </div>
-      {onCancel && row.status === "scheduled" && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="flex-shrink-0 text-gray-400 hover:text-red-600"
-          disabled={cancelling}
-          onClick={onCancel}
-          aria-label="Cancelar"
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
+      <div className="flex flex-col gap-1 flex-shrink-0">
+        {onCancelSeries && row.status === "scheduled" && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-red-600 hover:text-red-700 h-8 px-2"
+            disabled={cancelling}
+            onClick={onCancelSeries}
+          >
+            Cancelar série
+          </Button>
+        )}
+        {onCancel && row.status === "scheduled" && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-gray-400 hover:text-red-600"
+            disabled={cancelling}
+            onClick={onCancel}
+            aria-label="Cancelar"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+
+      {repostOpen && (
+        <RepostStatusModal
+          businessId={businessId}
+          row={row}
+          onClose={() => setRepostOpen(false)}
+          onScheduled={() => onReposted?.()}
+        />
       )}
 
-      {/* Fixed modal — rendered inside li but visually escapes via position:fixed */}
       {previewOpen && (
         <StoryPreviewModal
           row={row}
