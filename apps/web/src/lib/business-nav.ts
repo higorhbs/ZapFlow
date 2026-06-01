@@ -2,6 +2,7 @@ export const BUSINESS_PANEL_SEGMENTS = [
   "conversations",
   "appointments",
   "catalog",
+  "status",
   "payments",
   "faqs",
   "whatsapp",

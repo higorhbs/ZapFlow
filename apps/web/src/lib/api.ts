@@ -31,8 +31,17 @@ import {
   updateClientAppointment,
   listClientPayments,
   getClientAnalytics,
+  listClientScheduledStatuses,
+  createClientScheduledStatus,
+  cancelClientScheduledStatus,
 } from "@flowdesk/firebase/client";
-import type { Plan, ConversationStatus, AppointmentStatus } from "@flowdesk/firebase/client";
+import type {
+  Plan,
+  ConversationStatus,
+  AppointmentStatus,
+  ScheduledStatus,
+  ScheduledStatusMediaType,
+} from "@flowdesk/firebase/client";
 
 function isLocalDevHost() {
   if (typeof window === "undefined") return false;
@@ -294,6 +303,34 @@ function wakeWaApi() {
   if (/localhost|127\.0\.0\.1/.test(base)) return;
   void waApi.get("/health", { timeout: 4_000 }).catch(() => undefined);
 }
+
+export const scheduledStatusApi = {
+  list: (businessId: string) => listClientScheduledStatuses(businessId, requireUid()),
+  upload: async (businessId: string, file: File) => {
+    wakeWaApi();
+    const form = new FormData();
+    form.append("file", file);
+    const r = await waApi.post<{ mediaUrl: string; mediaType: ScheduledStatusMediaType }>(
+      `/businesses/${businessId}/whatsapp/status/upload`,
+      form,
+      { timeout: 120_000 }
+    );
+    return r.data;
+  },
+  create: (
+    businessId: string,
+    data: {
+      mediaUrl: string;
+      mediaType: ScheduledStatusMediaType;
+      caption?: string;
+      scheduledAt: string;
+    }
+  ) => createClientScheduledStatus(businessId, requireUid(), data),
+  cancel: (businessId: string, statusId: string) =>
+    cancelClientScheduledStatus(businessId, requireUid(), statusId),
+};
+
+export type { ScheduledStatus };
 
 export const whatsappApi = {
   connect: async (businessId: string, force = false) => {

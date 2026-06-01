@@ -70,8 +70,10 @@ const Noise = () => {
     <div
       className="absolute inset-0 w-full h-full scale-[1.2] transform opacity-10 [mask-image:radial-gradient(#fff,transparent,75%)]"
       style={{
-        backgroundImage: "url(/noise.webp)",
-        backgroundSize: "30%",
+        backgroundImage:
+          "radial-gradient(rgba(255,255,255,0.22) 1px, transparent 1px), radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1px)",
+        backgroundPosition: "0 0, 12px 12px",
+        backgroundSize: "24px 24px",
       }}
     ></div>
   );

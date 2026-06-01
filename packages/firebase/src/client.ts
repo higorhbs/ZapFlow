@@ -75,6 +75,7 @@ export {
 } from "./client-tenant.js";
 export * from "./client-data.js";
 export * from "./client-ops.js";
+export * from "./client-status.js";
 export type {
   Plan,
   PlanStatus,
@@ -82,4 +83,7 @@ export type {
   BotMenuItemConfig,
   ConversationStatus,
   AppointmentStatus,
+  ScheduledStatus,
+  ScheduledStatusState,
+  ScheduledStatusMediaType,
 } from "./types.js";

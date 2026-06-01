@@ -1,0 +1,20 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function businessOwned(businessId) {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && firestore.get(/databases/(default)/documents/businesses/$(businessId)).data.tenantId == request.auth.uid;
+    }
+
+    match /businesses/{businessId}/status/{fileName} {
+      allow read: if businessOwned(businessId);
+      allow write: if businessOwned(businessId)
+        && request.resource.size < 16 * 1024 * 1024
+        && (
+          request.resource.contentType.matches('image/.*')
+          || request.resource.contentType.matches('video/.*')
+        );
+    }
+  }
+}

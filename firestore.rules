@@ -48,6 +48,9 @@ service cloud.firestore {
         allow read: if businessOwned(businessId);
         allow write: if false;
       }
+      match /scheduledStatuses/{statusId} {
+        allow read, write: if businessOwned(businessId);
+      }
       match /integrations/{docId} {
         allow read, write: if false;
       }

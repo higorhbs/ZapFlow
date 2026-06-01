@@ -48,6 +48,8 @@
       { "source": "/businesses/*/faqs/", "destination": "/businesses/app/faqs/index.html" },
       { "source": "/businesses/*/whatsapp", "destination": "/businesses/app/whatsapp/index.html" },
       { "source": "/businesses/*/whatsapp/", "destination": "/businesses/app/whatsapp/index.html" },
+      { "source": "/businesses/*/status", "destination": "/businesses/app/status/index.html" },
+      { "source": "/businesses/*/status/", "destination": "/businesses/app/status/index.html" },
       { "source": "/businesses/*/settings", "destination": "/businesses/app/settings/index.html" },
       { "source": "/businesses/*/settings/", "destination": "/businesses/app/settings/index.html" }
     ]
