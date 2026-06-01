@@ -9,7 +9,7 @@ import { PLAN_LABELS, PLAN_STATUS_LABELS, cn, formatCurrency } from "@/lib/utils
 import { PLAN_LIMITS, PLAN_PRICES, planMarketingFeatures, formatPlanLimit, effectivePlanStatus, isStarterTrialActive, isActivePaidPlan, starterTrialDaysLeft, isSubscriptionCancelScheduled, APP_DISPLAY_NAME } from "@flowdesk/shared";
 import type { Plan } from "@flowdesk/firebase/client";
 import { toast } from "sonner";
-import { Check, Crown, Loader2, Sparkles, Zap, ArrowRight, CalendarDays, BookOpen, ExternalLink, CalendarX2 } from "lucide-react";
+import { Check, Crown, Loader2, Sparkles, Zap, ArrowRight, CalendarDays, BookOpen, ExternalLink, CalendarX2, CircleDot } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -166,8 +166,15 @@ export default function PlanPage() {
           {/* Right: usage stats */}
           <div className="flex gap-3 flex-wrap sm:flex-nowrap">
             {[
-              { icon: BookOpen,     label: "Catálogo",      value: `até ${formatPlanLimit(limits.catalogItems)}` },
-              { icon: CalendarDays, label: "Agendamentos",  value: `${formatPlanLimit(limits.appointmentsPerMonth)}/mês` },
+              { icon: BookOpen, label: "Catálogo", value: `até ${formatPlanLimit(limits.catalogItems)}` },
+              { icon: CalendarDays, label: "Agendamentos", value: `${formatPlanLimit(limits.appointmentsPerMonth)}/mês` },
+              {
+                icon: CircleDot,
+                label: "Stories",
+                value: Number.isFinite(limits.scheduledStoriesPerMonth)
+                  ? `${formatPlanLimit(limits.scheduledStoriesPerMonth)}/mês`
+                  : "Ilimitado",
+              },
             ].map(({ icon: Icon, label, value }) => (
               <div
                 key={label}

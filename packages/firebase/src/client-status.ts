@@ -8,8 +8,14 @@ import {
   orderBy,
   writeBatch,
 } from "firebase/firestore";
+import type { Plan } from "./types.js";
 import type { ScheduledStatus, ScheduledStatusMediaType } from "./types.js";
 import { buildScheduledAtsFromDayKeys } from "./schedule-status-dates.js";
+import {
+  assertScheduledStoriesQuota,
+  countScheduledStoriesInMonth,
+  type PlanTier,
+} from "@flowdesk/shared";
 import { getClientDb } from "./client.js";
 
 function nowIso() {
@@ -26,6 +32,28 @@ function businessRef(businessId: string) {
 
 function scheduledStatusesCol(businessId: string) {
   return collection(getClientDb(), "businesses", businessId, "scheduledStatuses");
+}
+
+function tenantRef(tenantId: string) {
+  return doc(getClientDb(), "tenants", tenantId);
+}
+
+async function getTenantPlan(tenantId: string): Promise<PlanTier> {
+  const snap = await getDoc(tenantRef(tenantId));
+  const plan = snap.data()?.plan as Plan | undefined;
+  return (plan ?? "STARTER") as PlanTier;
+}
+
+async function assertStoriesQuotaForCreate(
+  businessId: string,
+  tenantId: string,
+  adding: number
+) {
+  const plan = await getTenantPlan(tenantId);
+  const snap = await getDocs(scheduledStatusesCol(businessId));
+  const rows = snap.docs.map((d) => d.data() as ScheduledStatus);
+  const used = countScheduledStoriesInMonth(rows);
+  assertScheduledStoriesQuota(plan, used, adding);
 }
 
 async function assertBusinessOwned(businessId: string, tenantId: string) {
@@ -67,6 +95,7 @@ export async function createClientScheduledStatuses(
 ): Promise<ScheduledStatus[]> {
   await assertBusinessOwned(businessId, tenantId);
   if (!data.scheduledAts.length) throw new Error("Informe pelo menos um horário.");
+  await assertStoriesQuotaForCreate(businessId, tenantId, data.scheduledAts.length);
 
   const seriesId = data.seriesId ?? (data.scheduledAts.length > 1 ? newId() : undefined);
   const ts = nowIso();

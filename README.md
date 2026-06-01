@@ -158,11 +158,11 @@ Para WhatsApp completo (QR, bot, envio), suba o **flowdesk-wa** apontando `NEXT_
 
 ## Planos
 
-| Plano | Preço | WhatsApp | Mensagens/mês | Catálogo | Agendamentos/mês | Extras |
-| --- | --- | --- | --- | --- | --- | --- |
-| **Starter** | R$ 9,99 | 1 número | 500 | 3 itens | 30 | Trial 14 dias |
-| **Pro** | R$ 99 | 3 números | 5.000 | 100 itens | 500 | PIX Asaas, relatórios |
-| **Unlimited** | R$ 199 | 10 números | Ilimitado | Ilimitado | Ilimitado | Suporte prioritário |
+| Plano | Preço | Mensagens/mês | Catálogo | Agendamentos/mês | Extras |
+| --- | --- | --- | --- | --- | --- |
+| **Starter** | R$ 69,90 | 500 | 3 itens | 30 | 2 stories/mês · Trial 14 dias |
+| **Pro** | R$ 99 | 5.000 | 100 itens | 500 | 10 stories/mês · PIX Asaas |
+| **Unlimited** | R$ 199 | Ilimitado | Ilimitado | Ilimitado | Stories ilimitados |
 
 Sincronizar preços Stripe: `pnpm stripe:sync-prices`
 

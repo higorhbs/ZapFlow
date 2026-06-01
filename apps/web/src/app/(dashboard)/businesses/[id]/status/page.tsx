@@ -4,8 +4,14 @@ import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { APP_DISPLAY_NAME } from "@flowdesk/shared";
-import { scheduledStatusApi, businessApi, type ScheduledStatus } from "@/lib/api";
+import {
+  APP_DISPLAY_NAME,
+  PLAN_LIMITS,
+  countScheduledStoriesInMonth,
+  formatPlanLimit,
+  type PlanTier,
+} from "@flowdesk/shared";
+import { scheduledStatusApi, businessApi, tenantApi, type ScheduledStatus } from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useAuth } from "@/contexts/auth-context";
 import { useSyncWhatsAppBusiness } from "@/lib/use-sync-wa-business";
@@ -82,9 +88,31 @@ export default function StatusSchedulePage() {
     refetchInterval: 20_000,
   });
 
+  const { data: tenant } = useQuery({
+    queryKey: ["tenant", uid],
+    queryFn: () => tenantApi.get(),
+    enabled: ready && !!uid,
+  });
+
+  const plan = (tenant?.plan ?? "STARTER") as PlanTier;
+  const storiesLimit = PLAN_LIMITS[plan].scheduledStoriesPerMonth;
+  const storiesUsed = useMemo(() => countScheduledStoriesInMonth(items), [items]);
+  const storiesLeft = Number.isFinite(storiesLimit)
+    ? Math.max(0, storiesLimit - storiesUsed)
+    : Infinity;
+  const selectionExceedsQuota =
+    Number.isFinite(storiesLimit) && selectedDayKeys.length > storiesLeft;
+
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!file) throw new Error("Selecione uma imagem ou vídeo.");
+      if (selectionExceedsQuota) {
+        throw new Error(
+          storiesLeft === 0
+            ? `Seu plano permite ${storiesLimit} publicações de stories por mês e você já atingiu o limite.`
+            : `Seu plano permite ${storiesLimit} publicações de stories por mês. Você pode agendar mais ${storiesLeft} neste mês.`,
+        );
+      }
       const { mediaUrl, mediaType } = await scheduledStatusApi.upload(businessId, file);
       if (selectedDayKeys.length === 0) throw new Error("Selecione pelo menos um dia no calendário.");
       return scheduledStatusApi.create(businessId, {
@@ -164,6 +192,28 @@ export default function StatusSchedulePage() {
           </div>
         </div>
       </div>
+
+      {Number.isFinite(storiesLimit) && (
+        <div
+          className={cn(
+            "flex items-start gap-3 mb-6 px-4 py-3 rounded-2xl border",
+            storiesLeft === 0
+              ? "bg-amber-50 border-amber-200"
+              : "bg-brand-50/50 border-brand-100",
+          )}
+        >
+          <CircleDot className="w-5 h-5 text-brand-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-gray-800">
+            Stories este mês: <strong>{storiesUsed}</strong> de{" "}
+            <strong>{formatPlanLimit(storiesLimit)}</strong> publicações do plano.
+            {storiesLeft > 0 ? (
+              <> Você pode agendar mais <strong>{storiesLeft}</strong>.</>
+            ) : (
+              <> Limite atingido — faça upgrade em Meu plano.</>
+            )}
+          </p>
+        </div>
+      )}
 
       {!connected && (
         <div className="flex items-start gap-3 mb-6 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200">
@@ -253,7 +303,12 @@ export default function StatusSchedulePage() {
 
           <Button
             className="w-full"
-            disabled={!file || createMutation.isPending || selectedDayKeys.length === 0}
+            disabled={
+              !file ||
+              createMutation.isPending ||
+              selectedDayKeys.length === 0 ||
+              selectionExceedsQuota
+            }
             onClick={() => createMutation.mutate()}
           >
             {createMutation.isPending ? (

@@ -5,7 +5,7 @@ import Stripe from "stripe";
 const BRAND = "FlowDesk IA";
 
 const PLANS = [
-  { env: "STRIPE_PRICE_STARTER", plan: "STARTER", brl: 9.99, name: `${BRAND} Starter` },
+  { env: "STRIPE_PRICE_STARTER", plan: "STARTER", brl: 69.9, name: `${BRAND} Starter` },
   { env: "STRIPE_PRICE_PRO", plan: "PRO", brl: 99, name: `${BRAND} Pro` },
   { env: "STRIPE_PRICE_UNLIMITED", plan: "UNLIMITED", brl: 199, name: `${BRAND} Unlimited` },
 ];

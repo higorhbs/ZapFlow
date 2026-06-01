@@ -67,8 +67,8 @@ export function HeroCopyMotion() {
         className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:mt-5 sm:text-lg"
       >
         Automatize seu atendimento no WhatsApp com IA. O {APP_DISPLAY_NAME} responde
-        clientes, agenda horários, envia confirmações e cobra via PIX
-        automaticamente.
+        clientes, agenda horários, envia confirmações, cobra via PIX e publica
+        stories automaticamente.
       </motion.p>
     </motion.div>
   );

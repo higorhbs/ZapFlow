@@ -141,8 +141,7 @@ export function LandingPlans() {
             Planos simples para crescer no WhatsApp
           </h2>
           <p className="mt-3 text-base text-muted-foreground sm:text-lg">
-            Sem taxa escondida. Escale quando precisar — do primeiro número ao
-            time inteiro.
+            Sem taxa escondida. Escale quando precisar — do trial ao plano completo.
           </p>
         </div>
 
