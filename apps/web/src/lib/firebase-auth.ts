@@ -151,7 +151,9 @@ export function authErrorMessage(err: unknown, fallback: string): string {
     return "O login com Google foi bloqueado pelo navegador. Permita pop-ups para este site e tente novamente.";
   }
   if (raw.toLowerCase().includes("origin_mismatch")) {
-    return "Use http://localhost:3000 (não IP da rede). Se persistir: pnpm google:oauth-setup.";
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "seu domínio";
+    return `Origem ${origin} não está no OAuth do Google. Console → Credentials → OAuth Web → Authorized JavaScript origins: adicione ${origin} (sem barra). Firebase → Auth → Authorized domains: mesmo host. Rode pnpm google:oauth-setup (WEB_ORIGIN no .env).`;
   }
   if (raw.toLowerCase().includes("redirect_uri_mismatch")) {
     const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim();

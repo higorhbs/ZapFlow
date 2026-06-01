@@ -136,7 +136,7 @@ Credencial Admin na raiz:
 GOOGLE_APPLICATION_CREDENTIALS=.secrets/firebase-adminsdk.json
 ```
 
-**Login Google:** rode `pnpm google:oauth-setup` e adicione no Google Cloud → OAuth Client → **Authorized redirect URIs** todas as URLs que o script listar (inclua `https://SEU-PROJETO.web.app/__/auth/handler`). `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` deve ser o domínio do Hosting (ex.: `zapflow-higor-2026.web.app`).
+**Login Google:** rode `pnpm google:oauth-setup` e adicione no Google Cloud → OAuth Client → **Authorized redirect URIs** e **Authorized JavaScript origins** todas as URLs que o script listar. Com domínio customizado (ex.: `https://flowdesk.ia.br`), defina `WEB_ORIGIN` no `.env` antes de rodar o script e inclua `flowdesk.ia.br` em Firebase → Authentication → Settings → **Authorized domains**. Erro `origin_mismatch` = falta a origem JS `https://seu-dominio` no OAuth Client.
 
 ### Desenvolvimento
 

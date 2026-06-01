@@ -14,8 +14,17 @@ const handlerWeb = `${site}/__/auth/handler`;
 const handlerLocal = "http://localhost:3000/__/auth/handler";
 const handlerLocal127 = "http://127.0.0.1:3000/__/auth/handler";
 
+const customOrigin = (process.env.WEB_ORIGIN || process.env.NEXT_PUBLIC_SITE_ORIGIN || "")
+  .trim()
+  .replace(/\/$/, "");
+const customHandler =
+  customOrigin && !customOrigin.includes("localhost") ? `${customOrigin}/__/auth/handler` : null;
+
 const redirects = [handlerWeb, handlerFirebase, handlerLocal, handlerLocal127];
+if (customHandler && !redirects.includes(customHandler)) redirects.push(customHandler);
+
 const jsOrigins = ["http://localhost:3000", "http://127.0.0.1:3000", site, firebaseApp];
+if (customOrigin && !jsOrigins.includes(customOrigin)) jsOrigins.push(customOrigin);
 
 const credentialsUrl = `https://console.cloud.google.com/apis/credentials?project=${project}`;
 const clientUrl = `https://console.cloud.google.com/apis/credentials/oauthclient/${clientSuffix}?project=${project}`;
@@ -35,6 +44,18 @@ console.log("\n--- Firebase Authorized domains ---");
 console.log("  localhost");
 console.log(`  ${project}.web.app`);
 console.log(`  ${project}.firebaseapp.com`);
+if (customOrigin) {
+  try {
+    console.log(`  ${new URL(customOrigin).hostname}`);
+  } catch {
+    /* ignore */
+  }
+}
+if (customOrigin) {
+  console.log("\n--- Domínio customizado (WEB_ORIGIN no .env) ---");
+  console.log(`  Origem JS: ${customOrigin}`);
+  if (customHandler) console.log(`  Redirect:  ${customHandler}`);
+}
 console.log(`\n  ${authDomainsUrl}`);
 console.log("\n--- App ---");
 console.log(`NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${project}.web.app`);
