@@ -173,6 +173,7 @@ function BotMenuEditor({
   initialGreetingMsg,
   initialMenuEnabled,
   initialGreetingEnabled,
+  initialAutoReplyEnabled,
   initialThanksMsg,
 }: {
   businessId: string;
@@ -182,11 +183,13 @@ function BotMenuEditor({
   initialGreetingMsg: string;
   initialMenuEnabled: boolean;
   initialGreetingEnabled: boolean;
+  initialAutoReplyEnabled: boolean;
   initialThanksMsg: string;
 }) {
   const v = getBusinessVocabulary(businessType);
   const queryClient = useQueryClient();
   const [items, setItems] = useState<BotMenuItemConfig[]>(initialMenu);
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(initialAutoReplyEnabled);
   const [menuEnabled, setMenuEnabled] = useState(initialMenuEnabled);
   const [greetingEnabled, setGreetingEnabled] = useState(initialGreetingEnabled);
   const [greetingMsg, setGreetingMsg] = useState(initialGreetingMsg);
@@ -208,6 +211,7 @@ function BotMenuEditor({
       businessApi.update(businessId, {
         botMenu: items.map(({ action: _legacy, ...it }) => it),
         botMenuEnabled: menuEnabled,
+        botAutoReplyEnabled: autoReplyEnabled,
         greetingEnabled,
         greetingMsg: greetingMsg.trim() || "Olá! Como posso ajudar?",
         thanksMsg: thanksMsg.trim() || DEFAULT_THANKS_MSG,
@@ -275,24 +279,33 @@ function BotMenuEditor({
     hint,
     checked,
     onChange,
+    disabled,
   }: {
     label: string;
     hint: string;
     checked: boolean;
     onChange: (v: boolean) => void;
+    disabled?: boolean;
   }) {
     return (
-      <div className="flex items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3.5">
+      <div
+        className={cn(
+          "flex items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3.5",
+          disabled && "opacity-50"
+        )}
+      >
         <div>
           <p className="text-sm font-medium text-gray-900">{label}</p>
           <p className="text-xs text-gray-500 mt-0.5">{hint}</p>
         </div>
         <button
           type="button"
-          onClick={() => onChange(!checked)}
+          disabled={disabled}
+          onClick={() => !disabled && onChange(!checked)}
           className={cn(
             "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 mt-0.5",
-            checked ? "bg-brand-600" : "bg-gray-200"
+            checked ? "bg-brand-600" : "bg-gray-200",
+            disabled && "cursor-not-allowed"
           )}
         >
           <span
@@ -419,13 +432,28 @@ function BotMenuEditor({
       {/* Editor */}
       <div>
         <div className="space-y-3 mb-6">
+          <div
+            className={cn(
+              "rounded-2xl border-2 px-4 py-4 transition-colors",
+              autoReplyEnabled ? "border-brand-200 bg-brand-50/50" : "border-amber-200 bg-amber-50"
+            )}
+          >
+            <ToggleRow
+              label="Respostas automáticas da IA"
+              hint="Desligado: a IA não envia nada (menu, FAQ, saudação, fora do horário). As mensagens do cliente continuam no painel de Conversas."
+              checked={autoReplyEnabled}
+              onChange={setAutoReplyEnabled}
+            />
+          </div>
+
           <ToggleRow
             label="Saudação inicial"
             hint="Mensagem de boas-vindas antes do menu ou das respostas automáticas."
             checked={greetingEnabled}
             onChange={setGreetingEnabled}
+            disabled={!autoReplyEnabled}
           />
-          {greetingEnabled && (
+          {greetingEnabled && autoReplyEnabled && (
             <textarea
               value={greetingMsg}
               onChange={(e) => setGreetingMsg(e.target.value)}
@@ -440,9 +468,15 @@ function BotMenuEditor({
             hint="Desativado: a IA responde só pelas perguntas e respostas cadastradas."
             checked={menuEnabled}
             onChange={setMenuEnabled}
+            disabled={!autoReplyEnabled}
           />
 
-          <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3.5">
+          <div
+            className={cn(
+              "rounded-2xl border border-gray-200 bg-white px-4 py-3.5",
+              !autoReplyEnabled && "opacity-50 pointer-events-none"
+            )}
+          >
             <p className="text-sm font-medium text-gray-900">Resposta de agradecimento</p>
             <p className="text-xs text-gray-500 mt-0.5">
               Quando o cliente mandar obrigado, valeu, vlw ou parecido.
@@ -453,11 +487,18 @@ function BotMenuEditor({
               rows={2}
               className="input resize-none w-full mt-3"
               placeholder={DEFAULT_THANKS_MSG}
+              disabled={!autoReplyEnabled}
             />
           </div>
         </div>
 
-        {menuEnabled ? (
+        {!autoReplyEnabled && (
+          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5">
+            Respostas automáticas desligadas — ative o interruptor acima ou responda manualmente em Conversas.
+          </p>
+        )}
+
+        {menuEnabled && autoReplyEnabled ? (
           <>
         <p className="text-sm text-gray-500 mb-5">
           Cada opção tem um <strong className="font-medium text-gray-700">nome</strong> que aparece no menu e uma{" "}
@@ -1147,6 +1188,9 @@ export default function BotPage() {
           initialGreetingMsg={business?.greetingMsg ?? "Olá {nome}! Bem-vindo ao {negocio} 😊 Como posso ajudar?"}
           initialMenuEnabled={(business as { botMenuEnabled?: boolean })?.botMenuEnabled !== false}
           initialGreetingEnabled={(business as { greetingEnabled?: boolean })?.greetingEnabled !== false}
+          initialAutoReplyEnabled={
+            (business as { botAutoReplyEnabled?: boolean })?.botAutoReplyEnabled !== false
+          }
           initialThanksMsg={
             (business as { thanksMsg?: string })?.thanksMsg?.trim() ||
             DEFAULT_THANKS_MSG
