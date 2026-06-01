@@ -16,7 +16,16 @@
 
 ## Na VM Oracle
 
-Siga na ordem.
+**Dois repositórios na mesma VM (comum):**
+
+| Pasta na VM | Repo | Função |
+|-------------|------|--------|
+| `~/flowdesk-wa` | flowdesk-wa | WhatsApp (Baileys), `zapflow.duckdns.org` |
+| `~/FlowDesk` | FlowDesk | Cobrança Stripe (`/billing/*`), `scripts/oracle/deploy-api.sh` |
+
+Se só existir `~/flowdesk-wa`, o checkout de planos **não funciona** — clone o FlowDesk ou use Firebase `/api`.
+
+Siga na ordem (billing = pasta **FlowDesk**).
 
 ## 1. Domínio da API
 
