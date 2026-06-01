@@ -10,9 +10,9 @@ import {
   Settings,
   LogOut,
   CreditCard,
-  Wifi,
   WifiOff,
   ChevronLeft,
+  ChevronRight,
   BookOpen,
   Banknote,
   Loader2,
@@ -82,7 +82,7 @@ export function Sidebar() {
         { href: panelHref(businessId, "conversations"), icon: MessageSquare, label: "Conversas", vocab: false },
         { href: panelHref(businessId, "appointments"), icon: Calendar, label: v.bookingsNav, vocab: true },
         { href: panelHref(businessId, "catalog"), icon: BookOpen, label: v.catalogNav, vocab: true },
-        { href: panelHref(businessId, "status"), icon: CircleDot, label: "Status", vocab: false },
+        { href: panelHref(businessId, "status"), icon: CircleDot, label: "Stories", vocab: false },
         ...(pixEnabled
           ? [{ href: `${panelHref(businessId, "faqs")}?sec=pix`, icon: Banknote, label: "Pagamentos", vocab: false as const }]
           : []),
@@ -145,41 +145,42 @@ export function Sidebar() {
           </div>
 
           {business && (
-            <div className="mt-2.5 flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                {business.isConnected ? (
-                  <>
-                    <Wifi className="w-3 h-3 text-green-600" />
-                    <span className="text-xs font-medium text-green-700">
-                      WhatsApp conectado
+            <div className="mt-2.5">
+              {business.isConnected ? (
+                <div className="flex items-center justify-between gap-1">
+                  <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-50 border border-green-200">
+                    <span className="relative flex w-1.5 h-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-green-500" />
                     </span>
-                  </>
-                ) : (
-                  <Link
-                    href={`/businesses/${businessId}/whatsapp`}
-                    className="flex items-center gap-1.5 hover:opacity-75 transition-opacity"
+                    <span className="text-xs font-medium text-green-700">WhatsApp conectado</span>
+                  </div>
+                  <button
+                    onClick={() => disconnectMutation.mutate()}
+                    disabled={disconnectMutation.isPending}
+                    className="shrink-0 text-[10px] text-red-400 hover:text-red-600 font-medium transition-colors flex items-center gap-0.5"
+                    title="Desconectar WhatsApp"
                   >
-                    <WifiOff className="w-3 h-3 text-gray-400" />
-                    <span className="text-xs text-gray-500 underline underline-offset-2">
-                      Desconectado
-                    </span>
-                  </Link>
-                )}
-              </div>
-              {business.isConnected && (
-                <button
-                  onClick={() => disconnectMutation.mutate()}
-                  disabled={disconnectMutation.isPending}
-                  className="text-[10px] text-red-500 hover:text-red-700 font-medium transition-colors flex items-center gap-0.5"
-                  title="Desconectar WhatsApp"
+                    {disconnectMutation.isPending ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <WifiOff className="w-3 h-3" />
+                    )}
+                    Desconectar
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href={`/businesses/${businessId}/whatsapp`}
+                  className="group flex w-full items-center gap-2 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 hover:bg-amber-100 hover:border-amber-300 transition-all"
                 >
-                  {disconnectMutation.isPending ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <WifiOff className="w-3 h-3" />
-                  )}
-                  Desconectar
-                </button>
+                  <WifiOff className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                  <span className="text-xs font-medium text-amber-800 flex-1">Desconectado</span>
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 group-hover:translate-x-0.5 transition-transform">
+                    Conectar
+                    <ChevronRight className="w-3 h-3" />
+                  </span>
+                </Link>
               )}
             </div>
           )}

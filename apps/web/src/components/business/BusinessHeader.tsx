@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { businessApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { getBusinessTypeLabel } from "@/lib/utils";
-import { Wifi, WifiOff, Store } from "lucide-react";
+import { WifiOff, Store } from "lucide-react";
+import { AppLink as Link } from "@/components/AppLink";
 
 export function BusinessHeader({ businessId }: { businessId: string }) {
   const { uid, ready } = useAuth();
@@ -33,17 +34,24 @@ export function BusinessHeader({ businessId }: { businessId: string }) {
           )}
         </div>
         {business && (
-          <div className="flex items-center gap-1.5 mt-0.5">
+          <div className="flex items-center gap-2 mt-0.5">
             {business.isConnected ? (
-              <>
-                <Wifi className="w-3 h-3 text-green-500" />
-                <span className="text-xs text-green-600 font-medium">Conectado</span>
-              </>
+              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-50 border border-green-200">
+                <span className="relative flex w-1.5 h-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-green-500" />
+                </span>
+                <span className="text-xs text-green-700 font-medium">Conectado</span>
+              </div>
             ) : (
-              <>
-                <WifiOff className="w-3 h-3 text-gray-400" />
-                <span className="text-xs text-gray-400">Desconectado</span>
-              </>
+              <Link
+                href={`/businesses/${businessId}/whatsapp`}
+                className="group inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 hover:bg-amber-100 hover:border-amber-300 transition-all"
+              >
+                <WifiOff className="w-3 h-3 text-amber-500" />
+                <span className="text-xs text-amber-700 font-medium">Desconectado</span>
+                <span className="text-[10px] text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5">· Conectar</span>
+              </Link>
             )}
             {business.phone && (
               <>

@@ -120,9 +120,9 @@ export default function StatusSchedulePage() {
             <CircleDot className="w-7 h-7 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Status do WhatsApp</h1>
+            <h1 className="text-2xl font-bold text-white">Stories do WhatsApp</h1>
             <p className="text-white/75 text-sm mt-0.5">
-              Envie arte ou vídeo no status na hora que escolher
+              Agende imagens e vídeos para publicar no status do WhatsApp
             </p>
           </div>
         </div>
