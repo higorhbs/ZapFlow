@@ -31,12 +31,12 @@ export function MobileNav() {
 
   const links = [
     { href: panelHref(navId, "conversations"), icon: MessageSquare, label: "Conversas", vocab: false },
+    { href: panelHref(navId, "faqs"), icon: IaIcon, label: "IA", vocab: false },
     { href: panelHref(navId, "appointments"), icon: Calendar, label: v.bookingsNavShort, vocab: true },
     { href: panelHref(navId, "catalog"), icon: BookOpen, label: v.catalogNavShort, vocab: true },
     ...(pixEnabled
       ? [{ href: `${panelHref(navId, "faqs")}?sec=pix`, icon: Banknote, label: "Pagto", vocab: false as const }]
       : []),
-    { href: panelHref(navId, "faqs"), icon: IaIcon, label: "IA", vocab: false },
     { href: panelHref(navId, "settings"), icon: Settings, label: "Ajustes", vocab: false },
   ];
 

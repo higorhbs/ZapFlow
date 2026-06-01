@@ -22,12 +22,12 @@ function businessSections(type?: string, pixEnabled?: boolean) {
   const v = getBusinessVocabulary(type);
   return [
     { href: "conversations", icon: MessageSquare, label: "Conversas", desc: "Histórico e atendimentos", color: "bg-blue-50 text-blue-600" },
+    { href: "faqs", icon: IaIcon, label: "IA", desc: "Menu e perguntas automáticas", color: "bg-green-50 text-green-600" },
     { href: "appointments", icon: Calendar, label: v.bookingsNav, desc: v.bookingsSectionDesc, color: "bg-violet-50 text-violet-600" },
     { href: "catalog", icon: BookOpen, label: v.catalogNav, desc: `${v.catalogItemPlural} no ${v.catalogNav.toLowerCase()}`, color: "bg-amber-50 text-amber-600" },
     ...(pixEnabled
       ? [{ href: "faqs", query: "sec=pix", icon: Banknote, label: "Pagamentos", desc: "PIX e recebimentos", color: "bg-emerald-50 text-emerald-600" }]
       : []),
-    { href: "faqs", icon: IaIcon, label: "IA", desc: "Menu e perguntas automáticas", color: "bg-green-50 text-green-600" },
     { href: "whatsapp", icon: Phone, label: "WhatsApp", desc: "Conectar dispositivo", color: "bg-emerald-50 text-emerald-600" },
     { href: "settings", icon: Settings, label: "Configurações", desc: "Dados, horários e mensagens", color: "bg-gray-100 text-gray-600" },
   ];

@@ -1,10 +1,10 @@
 export const BUSINESS_PANEL_SEGMENTS = [
   "conversations",
+  "faqs",
   "appointments",
   "catalog",
   "status",
   "payments",
-  "faqs",
   "whatsapp",
   "settings",
 ] as const;
