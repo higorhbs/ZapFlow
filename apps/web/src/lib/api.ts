@@ -27,6 +27,7 @@ import {
   listClientConversations,
   getClientConversation,
   updateClientConversationStatus,
+  deleteClientConversation,
   listClientAppointments,
   updateClientAppointment,
   listClientPayments,
@@ -330,6 +331,8 @@ export const conversationApi = {
     updateClientConversationStatus(businessId, requireUid(), conversationId, "OPEN"),
   close: (businessId: string, conversationId: string) =>
     updateClientConversationStatus(businessId, requireUid(), conversationId, "CLOSED"),
+  remove: (businessId: string, conversationId: string) =>
+    deleteClientConversation(businessId, requireUid(), conversationId),
 };
 
 function wakeWaApi() {

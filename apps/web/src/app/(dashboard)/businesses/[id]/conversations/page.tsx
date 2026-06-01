@@ -7,7 +7,7 @@ import { useBusinessId } from "@/lib/use-business-id";
 import { formatCustomerLabel, STATUS_LABELS, cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { MessageSquare, Send, User, Loader2, Search } from "lucide-react";
+import { MessageSquare, Send, User, Loader2, Search, Trash2 } from "lucide-react";
 import { IaIcon, IA_DISPLAY_NAME, isIaMessageRole } from "@/lib/ia-brand";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +73,18 @@ export default function ConversationsPage() {
       queryClient.invalidateQueries({ queryKey: ["conversation-detail", businessId, selected] });
       toast.success("IA reativada para esta conversa.");
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (convId: string) => conversationApi.remove(businessId, convId),
+    onSuccess: (_data, convId) => {
+      setSelected((cur) => (cur === convId ? null : cur));
+      void queryClient.invalidateQueries({ queryKey: ["conversations", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["conversations-open-count", businessId] });
+      void queryClient.removeQueries({ queryKey: ["conversation-detail", businessId, convId] });
+      toast.success("Conversa excluída.");
+    },
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao excluir conversa"),
   });
 
   const sendMutation = useMutation({
@@ -222,6 +234,34 @@ export default function ConversationsPage() {
                     Devolver à IA
                   </Button>
                 )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => {
+                    const label = formatCustomerLabel(
+                      selectedConv.customerPhone,
+                      selectedConv.customerName
+                    );
+                    if (
+                      !confirm(
+                        `Excluir a conversa com ${label}? Todas as mensagens serão apagadas. Esta ação não pode ser desfeita.`
+                      )
+                    ) {
+                      return;
+                    }
+                    deleteMutation.mutate(selectedConv.id);
+                  }}
+                >
+                  {deleteMutation.isPending ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3 h-3" />
+                  )}
+                  Excluir
+                </Button>
               </div>
             </div>
 

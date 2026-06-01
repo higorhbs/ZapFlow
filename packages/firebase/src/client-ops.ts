@@ -4,6 +4,8 @@ import {
   getDoc,
   getDocs,
   updateDoc,
+  deleteDoc,
+  writeBatch,
   query,
   where,
   orderBy,
@@ -100,6 +102,29 @@ export async function getClientConversation(
     appointments: aptsSnap.docs.map((d) => ({ id: d.id, businessId, ...d.data() }) as Appointment),
     payments: paysSnap.docs.map((d) => ({ id: d.id, businessId, ...d.data() }) as Payment),
   };
+}
+
+export async function deleteClientConversation(
+  businessId: string,
+  tenantId: string,
+  conversationId: string
+) {
+  await assertBusinessOwned(businessId, tenantId);
+  const convRef = doc(conversationsCol(businessId), conversationId);
+  const snap = await getDoc(convRef);
+  if (!snap.exists()) throw new Error("Conversa não encontrada.");
+
+  const msgsSnap = await getDocs(messagesCol(businessId, conversationId));
+  const db = getClientDb();
+  const chunk = 400;
+  for (let i = 0; i < msgsSnap.docs.length; i += chunk) {
+    const batch = writeBatch(db);
+    for (const d of msgsSnap.docs.slice(i, i + chunk)) {
+      batch.delete(d.ref);
+    }
+    await batch.commit();
+  }
+  await deleteDoc(convRef);
 }
 
 export async function updateClientConversationStatus(
