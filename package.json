@@ -11,7 +11,7 @@
     "build": "turbo run build",
     "google:oauth-setup": "node scripts/google-oauth-setup.mjs",
     "prepare:hosting": "node scripts/prepare-hosting.mjs",
-    "build:hosting": "pnpm run prepare:hosting && FIREBASE_STATIC=1 pnpm --filter @flowdesk/web build",
+    "build:hosting": "pnpm run prepare:hosting && pnpm --filter @flowdesk/web icons:generate && FIREBASE_STATIC=1 pnpm --filter @flowdesk/web build",
     "deploy:hosting": "pnpm run build:hosting && firebase deploy --only hosting",
     "preview:hosting": "pnpm run build:hosting && firebase emulators:exec --only hosting \"echo Abra http://127.0.0.1:5000 (ou porta exibida acima)\"",
     "deploy:firestore": "firebase deploy --only firestore",

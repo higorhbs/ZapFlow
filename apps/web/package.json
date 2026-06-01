@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "next dev --webpack -p 3000",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "icons:generate": "node ../../scripts/generate-brand-icons.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -28,6 +29,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "png-to-ico": "^2.1.8",
+    "sharp": "^0.33.5",
     "@tailwindcss/postcss": "^4.3.0",
     "@types/node": "^22.5.5",
     "@types/react": "^19.2.15",
