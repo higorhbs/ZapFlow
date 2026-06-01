@@ -13,7 +13,7 @@ import { panelHref } from "@/lib/business-nav";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Wifi, WifiOff, Store, MessageSquare, Calendar,
-  BookOpen, Settings, Phone, ChevronRight, Banknote,
+  BookOpen, Settings, Phone, ChevronRight, Banknote, CircleDot,
 } from "lucide-react";
 import { IaIcon } from "@/lib/ia-brand";
 import { planAllowsPix } from "@/lib/plan-features";
@@ -25,6 +25,7 @@ function businessSections(type?: string, pixEnabled?: boolean) {
     { href: "faqs", icon: IaIcon, label: "IA", desc: "Menu e perguntas automáticas", color: "bg-green-50 text-green-600" },
     { href: "appointments", icon: Calendar, label: v.bookingsNav, desc: v.bookingsSectionDesc, color: "bg-violet-50 text-violet-600" },
     { href: "catalog", icon: BookOpen, label: v.catalogNav, desc: `${v.catalogItemPlural} no ${v.catalogNav.toLowerCase()}`, color: "bg-amber-50 text-amber-600" },
+    { href: "status", icon: CircleDot, label: "Stories", desc: "Agendar arte no status do WhatsApp", color: "bg-teal-50 text-teal-600" },
     ...(pixEnabled
       ? [{ href: "faqs", query: "sec=pix", icon: Banknote, label: "Pagamentos", desc: "PIX e recebimentos", color: "bg-emerald-50 text-emerald-600" }]
       : []),

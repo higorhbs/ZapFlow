@@ -201,7 +201,7 @@ export default function WhatsAppPage() {
       </div>
 
       {waUnavailable && (
-        <Card className="mb-6 flex gap-3 border-amber-200 bg-amber-50 text-sm text-amber-900">
+        <Card className="mb-6 flex gap-3 px-4 border-amber-200 bg-amber-50 text-sm text-amber-900">
           <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-medium">WhatsApp indisponível neste ambiente</p>
@@ -302,7 +302,7 @@ export default function WhatsAppPage() {
       </Card>
 
       {!isConnected && !hasQr && !waUnavailable && !isConnectPending && !waitingQr && (
-        <Card className="mt-6 border-brand-100 bg-brand-50">
+        <Card className="mt-6 px-6 border-brand-100 bg-brand-50">
           <h3 className="font-medium text-brand-900 mb-3 flex items-center gap-2">
             <Smartphone className="w-4 h-4" />
             Como funciona

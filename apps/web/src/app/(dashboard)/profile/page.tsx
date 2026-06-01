@@ -201,7 +201,7 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
 
         {/* Left: Dados da conta */}
-        <Card className="space-y-5">
+        <Card className="space-y-5 px-6">
           <h2 className="font-semibold text-gray-900 flex items-center gap-2 pb-3 border-b border-gray-100">
             <span className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center">
               <User className="w-3.5 h-3.5 text-brand-600" />
@@ -263,7 +263,7 @@ export default function ProfilePage() {
         </Card>
 
         {/* Right: Senha */}
-        <Card>
+        <Card className="px-6">
           <h2 className="font-semibold text-gray-900 flex items-center gap-2 pb-3 border-b border-gray-100 mb-5">
             <span className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center">
               <Lock className="w-3.5 h-3.5 text-brand-600" />

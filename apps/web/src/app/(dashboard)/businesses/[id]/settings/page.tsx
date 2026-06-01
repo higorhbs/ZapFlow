@@ -123,7 +123,7 @@ export default function SettingsPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Configurações do negócio</h1>
 
       <form onSubmit={handleSubmit((d) => saveMutation.mutate(d))} className="space-y-6">
-        <Card className="space-y-4">
+        <Card className="space-y-4 px-6">
           <h2 className="font-semibold text-gray-900">Informações básicas</h2>
 
           <div className="space-y-1.5">
@@ -172,7 +172,7 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        <Card className="space-y-4">
+        <Card className="space-y-4 px-6">
           <h2 className="font-semibold text-gray-900">Horário de funcionamento</h2>
           <p className="text-sm text-gray-500">
             Horários no fuso de Brasília. Fora desse horário a IA envia a mensagem &quot;fora do horário&quot; abaixo.
@@ -186,7 +186,7 @@ export default function SettingsPage() {
           />
         </Card>
 
-        <Card className="space-y-4">
+        <Card className="space-y-4 px-6">
           <h2 className="font-semibold text-gray-900">Mensagens automáticas</h2>
           <p className="text-sm text-gray-500">Variáveis disponíveis: <code className="bg-gray-100 px-1 rounded">{`{nome}`}</code>, <code className="bg-gray-100 px-1 rounded">{`{negocio}`}</code></p>
 
